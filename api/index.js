@@ -6,7 +6,7 @@ const port = 5000;
 app.use(express.json());
 
 // Routes
-const userRoutes = require('./routes/userRoutes');
+const userRoutes = require('./../routes/userRoutes');
 
 
 app.use('/', userRoutes);
