@@ -40,7 +40,7 @@ router.post('/job-seeker', (req, res) => {
 
 
 // ✅ GET /job-seeker - fetch all job seekers
-router.get('/job-seekerhit', (req, res) => {
+router.get('/job-seeker', (req, res) => {
     console.log('✅ GET /job-seeker hit'); // Debug log
   db.query('SELECT * FROM job_seekers', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -93,7 +93,7 @@ router.put('/job-seeker/:id', (req, res) => {
 });
 
 // ✅ DELETE: Delete job seeker by ID
-router.delete('/:id', (req, res) => {
+router.delete('/job-seeker/:id', (req, res) => {
   const userId = req.params.id;
   db.query('DELETE FROM job_seekers WHERE user_id = ?', [userId], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
