@@ -40,7 +40,7 @@ router.post('/job-seeker', (req, res) => {
 
 
 // ✅ GET /job-seeker - fetch all job seekers
-router.get('/job-seekerhit', (req, res) => {
+router.get('/job-seeker', (req, res) => {
     console.log('✅ GET /job-seeker hit'); // Debug log
   db.query('SELECT * FROM job_seekers', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
