@@ -26,16 +26,47 @@ function stringifyJsonFields(data) {
   return data;
 }
 
-// ✅ POST: Create new job seeker
+// ✅ POST: Insert new or partially update existing job seeker
 router.post('/job-seeker', (req, res) => {
   const data = stringifyJsonFields(req.body);
+  const userId = data.user_id;
 
-  const sql = 'INSERT INTO job_seekers SET ?';
-  db.query(sql, data, (err, result) => {
+  if (!userId) {
+    return res.status(400).json({ error: 'user_id is required' });
+  }
+
+  // Check if user_id exists
+  const checkSql = 'SELECT * FROM job_seekers WHERE user_id = ?';
+  db.query(checkSql, [userId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.status(201).json({ message: 'Job seeker added', user_id: result.insertId });
+
+    if (results.length === 0) {
+      // INSERT new row
+      const insertSql = 'INSERT INTO job_seekers SET ?';
+      db.query(insertSql, data, (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ message: 'New job seeker inserted' });
+      });
+    } else {
+      // UPDATE only provided fields
+      const updateFields = Object.keys(data)
+        .filter(key => key !== 'user_id') // Don't update user_id
+        .map(key => `${key} = ?`)
+        .join(', ');
+
+      const updateValues = Object.keys(data)
+        .filter(key => key !== 'user_id')
+        .map(key => data[key]);
+
+      const updateSql = `UPDATE job_seekers SET ${updateFields} WHERE user_id = ?`;
+      db.query(updateSql, [...updateValues, userId], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(200).json({ message: 'Job seeker updated' });
+      });
+    }
   });
 });
+
 
 
 
