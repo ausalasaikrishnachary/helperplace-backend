@@ -4,52 +4,50 @@ const db = require('../db'); // assumes db.js exports MySQL connection
 
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
-// Image Upload Config
-const imageStorage = multer.diskStorage({
+// Ensure folders exist
+['images', 'videos'].forEach(dir => {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+});
+
+const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'images');
+    if (file.fieldname === 'profile_photo') {
+      cb(null, 'images');
+    } else if (file.fieldname === 'upload_video') {
+      cb(null, 'videos');
+    } else {
+      cb(new Error('Invalid field name'), null);
+    }
   },
   filename: (req, file, cb) => {
-    const uniqueName = `img-${Date.now()}${path.extname(file.originalname)}`;
+    const uniqueName = `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`;
     cb(null, uniqueName);
   }
 });
 
-// Video Upload Config
-const videoStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'videos');
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `vid-${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
-});
-
-// Filters
-function fileFilter(req, file, cb) {
-  const allowedImageTypes = /jpeg|jpg|png/;
-  const allowedVideoTypes = /mp4|mov|avi/;
+// Allow only image/video types
+const fileFilter = (req, file, cb) => {
+  const imageTypes = /jpeg|jpg|png/;
+  const videoTypes = /mp4|mov|avi/;
   const ext = path.extname(file.originalname).toLowerCase();
 
-  if (file.fieldname === 'profile_photo' && allowedImageTypes.test(ext)) {
+  if (file.fieldname === 'profile_photo' && imageTypes.test(ext)) {
     cb(null, true);
-  } else if (file.fieldname === 'upload_video' && allowedVideoTypes.test(ext)) {
+  } else if (file.fieldname === 'upload_video' && videoTypes.test(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type'), false);
+    cb(new Error('Only image and video files are allowed!'));
   }
-}
+};
 
-// Upload Middleware
+// Configure upload
 const upload = multer({
-  storage: (req, file, cb) => {
-    if (file.fieldname === 'profile_photo') cb(null, imageStorage);
-    else if (file.fieldname === 'upload_video') cb(null, videoStorage);
-  },
+  storage,
   fileFilter
 });
+
 
 
 // Fields that need to be stored as JSON strings in MySQL
