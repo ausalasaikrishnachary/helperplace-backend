@@ -9,6 +9,11 @@ app.use(cors());
 // Middleware to parse JSON
 app.use(express.json());
 
+
+app.use('/images', express.static('images'));
+app.use('/videos', express.static('videos'));
+
+
 // Routes
 const userRoutes = require('./routes/userRoutes');
 const jobSeekerRoutes = require('./routes/jobSeekerRoutes');

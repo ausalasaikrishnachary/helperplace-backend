@@ -2,6 +2,56 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db'); // assumes db.js exports MySQL connection
 
+const multer = require('multer');
+const path = require('path');
+
+// Image Upload Config
+const imageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'images');
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `img-${Date.now()}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  }
+});
+
+// Video Upload Config
+const videoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'videos');
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `vid-${Date.now()}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  }
+});
+
+// Filters
+function fileFilter(req, file, cb) {
+  const allowedImageTypes = /jpeg|jpg|png/;
+  const allowedVideoTypes = /mp4|mov|avi/;
+  const ext = path.extname(file.originalname).toLowerCase();
+
+  if (file.fieldname === 'profile_photo' && allowedImageTypes.test(ext)) {
+    cb(null, true);
+  } else if (file.fieldname === 'upload_video' && allowedVideoTypes.test(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file type'), false);
+  }
+}
+
+// Upload Middleware
+const upload = multer({
+  storage: (req, file, cb) => {
+    if (file.fieldname === 'profile_photo') cb(null, imageStorage);
+    else if (file.fieldname === 'upload_video') cb(null, videoStorage);
+  },
+  fileFilter
+});
+
+
 // Fields that need to be stored as JSON strings in MySQL
 const jsonFields = [
   'preffered_job_locations',
@@ -16,6 +66,7 @@ const jsonFields = [
   'experience'
 ];
 
+
 // Utility to stringify JSON fields if they are not strings
 function stringifyJsonFields(data) {
   jsonFields.forEach(field => {
@@ -26,8 +77,10 @@ function stringifyJsonFields(data) {
   return data;
 }
 
-// ✅ POST: Insert new or partially update existing job seeker
-router.post('/job-seeker', (req, res) => {
+router.post('/job-seeker', upload.fields([
+  { name: 'profile_photo', maxCount: 1 },
+  { name: 'upload_video', maxCount: 1 }
+]), (req, res) => {
   const data = stringifyJsonFields(req.body);
   const userId = data.user_id;
 
@@ -35,22 +88,31 @@ router.post('/job-seeker', (req, res) => {
     return res.status(400).json({ error: 'user_id is required' });
   }
 
-  // Check if user_id exists
+  // Save file paths if uploaded
+  if (req.files?.profile_photo) {
+    data.profile_photo = `/images/${req.files.profile_photo[0].filename}`;
+  }
+  if (req.files?.upload_video) {
+    const video = req.files.upload_video[0];
+    data.upload_video = `/videos/${video.filename}`;
+    data.video_file_size = video.size;
+    data.video_file_type = video.mimetype;
+    data.video_upload_date = new Date();
+  }
+
   const checkSql = 'SELECT * FROM job_seekers WHERE user_id = ?';
   db.query(checkSql, [userId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
 
     if (results.length === 0) {
-      // INSERT new row
       const insertSql = 'INSERT INTO job_seekers SET ?';
       db.query(insertSql, data, (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.status(201).json({ message: 'New job seeker inserted' });
       });
     } else {
-      // UPDATE only provided fields
       const updateFields = Object.keys(data)
-        .filter(key => key !== 'user_id') // Don't update user_id
+        .filter(key => key !== 'user_id')
         .map(key => `${key} = ?`)
         .join(', ');
 
@@ -66,8 +128,6 @@ router.post('/job-seeker', (req, res) => {
     }
   });
 });
-
-
 
 
 // ✅ GET /job-seeker - fetch all job seekers
@@ -105,10 +165,6 @@ router.get('/job-seeker/:id', (req, res) => {
     res.json(results[0]);
   });
 });
-
-
-
-
 
 
 // ✅ PUT: Update job seeker by ID
