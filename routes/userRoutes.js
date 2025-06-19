@@ -24,23 +24,23 @@ router.get('/:id', (req, res) => {
 
 // Create a new user
 router.post('/', (req, res) => {
-  const { email, password, first_name, last_name, role } = req.body;
-  const query = 'INSERT INTO users (email, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?)';
-  db.query(query, [email, password, first_name, last_name, role], (err, result) => {
+  const { email, mobile_number, password, first_name, last_name, role } = req.body;
+  const query = 'INSERT INTO users (email, mobile_number, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)';
+  db.query(query, [email, mobile_number, password, first_name, last_name, role], (err, result) => {
     if (err) return res.status(500).json({ error: err });
-    res.status(201).json({ id: result.insertId, email, first_name, last_name, role });
+    res.status(201).json({ id: result.insertId, email, mobile_number, first_name, last_name, role });
   });
 });
 
 // Update user
 router.put('/:id', (req, res) => {
   const { id } = req.params;
-  const { email, password, first_name, last_name, role, is_verified } = req.body;
+  const { email, mobile_number, password, first_name, last_name, role, is_verified } = req.body;
   const query = `
-    UPDATE users SET email = ?, password = ?, first_name = ?, last_name = ?, role = ?, is_verified = ?
+    UPDATE users SET email = ?, mobile_number = ?,  password = ?, first_name = ?, last_name = ?, role = ?, is_verified = ?
     WHERE id = ?
   `;
-  db.query(query, [email, password, first_name, last_name, role, is_verified, id], (err, result) => {
+  db.query(query, [email, mobile_number, password, first_name, last_name, role, is_verified, id], (err, result) => {
     if (err) return res.status(500).json({ error: err });
     res.json({ message: 'User updated successfully' });
   });
@@ -78,6 +78,7 @@ router.post('/login', (req, res) => {
       user: {
         id: user.id,
         email: user.email,
+        mobile_number: user.mobile_number,
         first_name: user.first_name,
         last_name: user.last_name,
         role: user.role,
