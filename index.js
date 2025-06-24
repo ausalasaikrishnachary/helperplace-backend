@@ -17,10 +17,11 @@ app.use('/videos', express.static('videos'));
 // Routes
 const userRoutes = require('./routes/userRoutes');
 const jobSeekerRoutes = require('./routes/jobSeekerRoutes');
-
+const agencyRoutes = require('./routes/agencyRoutes');
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
+app.use('/api', agencyRoutes);
 
 // Start server
 app.listen(port, () => {
