@@ -23,7 +23,7 @@ router.post('/', async (req, res) => {
           phone_number_country_code=?, phone_number=?, nationality=?, organization_name=?,
           offer_for_selected_candidates=?, country_currency=?, minimum_monthly_salary=?,
           maximum_monthly_salary=?, negotiable=?, adults=?, children=?, type_of_house=?, rooms=?,
-          bathrooms=?, have_pets=?, domestic_worker_name=?, nationality_of_domestic_worker=?
+          bathrooms=?, have_pets=?, domestic_worker_name=?, have_domestic_worker=?, nationality_of_domestic_worker=?
         WHERE user_id = ?`,
         [
           data.domestic_worker_category,
@@ -72,6 +72,7 @@ router.post('/', async (req, res) => {
           data.bathrooms,
           data.have_pets,
           data.domestic_worker_name,
+          data.have_domestic_worker,
           data.nationality_of_domestic_worker,
           data.user_id // for WHERE clause
         ]
@@ -91,8 +92,8 @@ router.post('/', async (req, res) => {
           whatsapp_number_country_code, whatsapp_number, phone_number_country_code, phone_number,
           nationality, organization_name, offer_for_selected_candidates, country_currency,
           minimum_monthly_salary, maximum_monthly_salary, negotiable, adults, children, type_of_house,
-          rooms, bathrooms, have_pets, domestic_worker_name, nationality_of_domestic_worker
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          rooms, bathrooms, have_pets, domestic_worker_name, have_domestic_worker, nationality_of_domestic_worker
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           data.user_id,
           data.domestic_worker_category,
@@ -141,6 +142,7 @@ router.post('/', async (req, res) => {
           data.bathrooms,
           data.have_pets,
           data.domestic_worker_name,
+          data.have_domestic_worker,
           data.nationality_of_domestic_worker
         ]
       );
@@ -202,7 +204,7 @@ router.put('/:user_id', async (req, res) => {
         phone_number_country_code=?, phone_number=?, nationality=?, organization_name=?,
         offer_for_selected_candidates=?, country_currency=?, minimum_monthly_salary=?,
         maximum_monthly_salary=?, negotiable=?, adults=?, children=?, type_of_house=?, rooms=?,
-        bathrooms=?, have_pets=?, domestic_worker_name=?, nationality_of_domestic_worker=?
+        bathrooms=?, have_pets=?, domestic_worker_name=?, have_domestic_worker=?, nationality_of_domestic_worker=?
       WHERE user_id = ?`,
       [
         data.domestic_worker_category,
@@ -251,6 +253,7 @@ router.put('/:user_id', async (req, res) => {
         data.bathrooms,
         data.have_pets,
         data.domestic_worker_name,
+        data.have_domestic_worker,
         data.nationality_of_domestic_worker,
         user_id
       ]
