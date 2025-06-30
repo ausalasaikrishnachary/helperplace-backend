@@ -2,76 +2,94 @@
 
 const express = require('express');
 const router = express.Router();
-const db = require('../db'); // adjust the path if needed
+const db = require('../db'); // adjust the path as needed
 
 // Get all users
-router.get('/', (req, res) => {
-  db.query('SELECT * FROM users', (err, results) => {
-    if (err) return res.status(500).json({ error: err });
+router.get('/', async (req, res) => {
+  try {
+    const [results] = await db.query('SELECT * FROM users');
     res.json(results);
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Get user by ID
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const { id } = req.params;
-  db.query('SELECT * FROM users WHERE id = ?', [id], (err, results) => {
-    if (err) return res.status(500).json({ error: err });
+  try {
+    const [results] = await db.query('SELECT * FROM users WHERE id = ?', [id]);
     if (results.length === 0) return res.status(404).json({ message: 'User not found' });
     res.json(results[0]);
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Create a new user
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { email, mobile_number, password, first_name, last_name, role } = req.body;
-  const query = 'INSERT INTO users (email, mobile_number, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)';
-  db.query(query, [email, mobile_number, password, first_name, last_name, role], (err, result) => {
-    if (err) return res.status(500).json({ error: err });
-    res.status(201).json({ id: result.insertId, email, mobile_number, first_name, last_name, role });
-  });
+  try {
+    const query = `
+      INSERT INTO users (email, mobile_number, password, first_name, last_name, role)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+    const [result] = await db.query(query, [email, mobile_number, password, first_name, last_name, role]);
+    res.status(201).json({
+      id: result.insertId,
+      email,
+      mobile_number,
+      first_name,
+      last_name,
+      role
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Update user
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { email, mobile_number, password, first_name, last_name, role, is_verified } = req.body;
-  const query = `
-    UPDATE users SET email = ?, mobile_number = ?,  password = ?, first_name = ?, last_name = ?, role = ?, is_verified = ?
-    WHERE id = ?
-  `;
-  db.query(query, [email, mobile_number, password, first_name, last_name, role, is_verified, id], (err, result) => {
-    if (err) return res.status(500).json({ error: err });
+  try {
+    const query = `
+      UPDATE users SET email = ?, mobile_number = ?, password = ?, first_name = ?, last_name = ?, role = ?, is_verified = ?
+      WHERE id = ?
+    `;
+    await db.query(query, [email, mobile_number, password, first_name, last_name, role, is_verified, id]);
     res.json({ message: 'User updated successfully' });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Delete user
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-  db.query('DELETE FROM users WHERE id = ?', [id], (err) => {
-    if (err) return res.status(500).json({ error: err });
+  try {
+    await db.query('DELETE FROM users WHERE id = ?', [id]);
     res.json({ message: 'User deleted successfully' });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // User login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required' });
   }
 
-  const query = 'SELECT * FROM users WHERE email = ? AND password = ?';
-  db.query(query, [email, password], (err, results) => {
-    if (err) return res.status(500).json({ error: err });
+  try {
+    const [results] = await db.query('SELECT * FROM users WHERE email = ? AND password = ?', [email, password]);
 
     if (results.length === 0) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Optional: You can return just a few fields or all
     const user = results[0];
     res.json({
       message: 'Login successful',
@@ -86,8 +104,9 @@ router.post('/login', (req, res) => {
         created_at: user.created_at
       }
     });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
-
 
 module.exports = router;
