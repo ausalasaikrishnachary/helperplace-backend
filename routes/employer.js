@@ -153,8 +153,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-
-
 // ✅ GET - All Listings or Filter by user_id
 router.get('/', async (req, res) => {
   try {
@@ -167,6 +165,23 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error fetching job listings' });
+  }
+});
+
+// ✅ GET - Single Job Listing by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await db.execute(`SELECT * FROM employer WHERE id = ?`, [id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Job listing not found' });
+    }
+
+    res.status(200).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error fetching job listing by ID' });
   }
 });
 
