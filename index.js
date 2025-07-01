@@ -17,18 +17,16 @@ app.use('/videos', express.static('videos'));
 // Routes
 const userRoutes = require('./routes/userRoutes');
 const jobSeekerRoutes = require('./routes/jobSeekerRoutes');
-
-const employerRoutes = require("./routes/employer");
-
-
-app.use('/', userRoutes);
-app.use('/api', jobSeekerRoutes);
-app.use("/api/employers", employerRoutes);
 const agencyRoutes = require('./routes/agencyRoutes');
+const employerRoutes = require('./routes/employerRoutes');
+
+
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
 app.use('/api', agencyRoutes);
+app.use("/api/employer", employerRoutes);
+
 
 
 // Start server
