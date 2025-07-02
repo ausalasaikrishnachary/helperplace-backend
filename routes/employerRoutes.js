@@ -57,6 +57,50 @@ router.post("/", async (req, res) => {
   }
 });
 
+// GET all employer data
+router.get("/all", async (req, res) => {
+  try {
+    const [rows] = await db.execute(`SELECT * FROM employer`);
+
+    if (rows.length > 0) {
+      res.json(rows);
+    } else {
+      res.status(404).json({ message: "No data found" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+
+
+// GET employer data by user_id only
+router.get("/by-user", async (req, res) => {
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ message: "user_id is required" });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT * FROM employer WHERE user_id = ?`,
+      [user_id]
+    );
+
+    if (rows.length > 0) {
+      res.json(rows);
+    } else {
+      res.status(404).json({ message: "No data found for this user_id" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+
+
+
 // GET employer data by temporary_id and user_id
 router.get("/", async (req, res) => {
   const { temporary_id, user_id } = req.query;
