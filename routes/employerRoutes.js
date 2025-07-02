@@ -73,7 +73,6 @@ router.get("/all", async (req, res) => {
   }
 });
 
-
 // GET employer data by user_id only
 router.get("/by-user", async (req, res) => {
   const { user_id } = req.query;
@@ -99,8 +98,6 @@ router.get("/by-user", async (req, res) => {
   }
 });
 
-
-
 // GET employer data by temporary_id and user_id
 router.get("/", async (req, res) => {
   const { temporary_id, user_id } = req.query;
@@ -125,6 +122,25 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Database error", error: err.message });
   }
 });
+
+// GET - Latest temporary_id
+router.get("/latest-temporary-id", async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT temporary_id FROM employer ORDER BY id DESC LIMIT 1`
+    );
+
+    if (rows.length > 0) {
+      res.json({ latest_temporary_id: rows[0].temporary_id });
+    } else {
+      res.status(404).json({ message: "No records found" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+
 
 // PUT - Update employer data by temporary_id and user_id
 router.put("/", async (req, res) => {
