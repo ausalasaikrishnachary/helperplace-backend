@@ -51,13 +51,13 @@ router.post('/', async (req, res) => {
 // Update user
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { email, mobile_number, password, first_name, last_name, role, is_verified } = req.body;
+  const { email, mobile_number, password, first_name, last_name} = req.body;
   try {
     const query = `
-      UPDATE users SET email = ?, mobile_number = ?, password = ?, first_name = ?, last_name = ?, role = ?, is_verified = ?
+      UPDATE users SET email = ?, mobile_number = ?, password = ?, first_name = ?, last_name = ?
       WHERE id = ?
     `;
-    await db.query(query, [email, mobile_number, password, first_name, last_name, role, is_verified, id]);
+    await db.query(query, [email, mobile_number, password, first_name, last_name, id]);
     res.json({ message: 'User updated successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
