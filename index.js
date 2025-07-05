@@ -19,14 +19,14 @@ const userRoutes = require('./routes/userRoutes');
 const jobSeekerRoutes = require('./routes/jobSeekerRoutes');
 const agencyRoutes = require('./routes/agencyRoutes');
 const employerRoutes = require('./routes/employerRoutes');
-
+const applyRoutes = require('./routes/applyRoutes');
 
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
 app.use('/api', agencyRoutes);
 app.use("/api/employer", employerRoutes);
-
+app.use("/", applyRoutes);
 
 
 // Start server
