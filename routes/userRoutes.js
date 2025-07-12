@@ -28,20 +28,21 @@ router.get('/:id', async (req, res) => {
 
 // Create a new user
 router.post('/', async (req, res) => {
-  const { email, mobile_number, password, first_name, last_name, role } = req.body;
+  const { email, mobile_number, password, first_name, last_name, role, source } = req.body;
   try {
     const query = `
-      INSERT INTO users (email, mobile_number, password, first_name, last_name, role)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO users (email, mobile_number, password, first_name, last_name, role, source)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
-    const [result] = await db.query(query, [email, mobile_number, password, first_name, last_name, role]);
+    const [result] = await db.query(query, [email, mobile_number, password, first_name, last_name, role, source]);
     res.status(201).json({
       id: result.insertId,
       email,
       mobile_number,
       first_name,
       last_name,
-      role
+      role, 
+      source,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -84,29 +85,61 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const [results] = await db.query('SELECT * FROM users WHERE email = ? AND password = ?', [email, password]);
+    // First, try to find the user in the 'users' table
+    const [userResults] = await db.query(
+      'SELECT * FROM users WHERE email = ? AND password = ?',
+      [email, password]
+    );
 
-    if (results.length === 0) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+    if (userResults.length > 0) {
+      const user = userResults[0];
+      return res.json({
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          mobile_number: user.mobile_number,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          role: user.role,
+          is_verified: user.is_verified,
+          created_at: user.created_at,
+          user_type: 'general' // you can optionally differentiate users
+        }
+      });
     }
 
-    const user = results[0];
-    res.json({
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        email: user.email,
-        mobile_number: user.mobile_number,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        role: user.role,
-        is_verified: user.is_verified,
-        created_at: user.created_at
-      }
-    });
+    // If not found in 'users', try 'agency_user' table
+    const [agencyResults] = await db.query(
+      'SELECT * FROM agency_user WHERE email = ? AND password = ?',
+      [email, password]
+    );
+
+    if (agencyResults.length > 0) {
+      const agencyUser = agencyResults[0];
+      return res.json({
+        message: 'Login successful',
+        user: {
+          id: agencyUser.id,
+          email: agencyUser.email,
+          mobile_number: agencyUser.mobile_number,
+          first_name: agencyUser.first_name,
+          last_name: agencyUser.last_name,
+          role: agencyUser.role,
+          is_verified: agencyUser.is_verified,
+          created_at: agencyUser.created_at,
+          user_type: 'agency' // differentiate if needed
+        }
+      });
+    }
+
+    // If no match in both tables
+    return res.status(401).json({ message: 'Invalid email or password' });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 module.exports = router;
