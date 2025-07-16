@@ -1,64 +1,10 @@
 // routes/employer.js
 const express = require("express");
 const router = express.Router();
-const db = require('../db'); // adjust path if needed
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const db = require('../db');// adjust path if needed
 
-// Ensure images folder exists
-if (!fs.existsSync('images')) {
-  fs.mkdirSync('images');
-}
-
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if (file.fieldname === 'profile_photo') {
-      cb(null, 'images');
-    } else {
-      cb(new Error('Invalid field name'), null);
-    }
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
-});
-
-const fileFilter = (req, file, cb) => {
-  const imageTypes = /jpeg|jpg|png/;
-  const ext = path.extname(file.originalname).toLowerCase();
-
-  if (file.fieldname === 'profile_photo' && imageTypes.test(ext)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only image files are allowed!'));
-  }
-};
-
-const upload = multer({ 
-  storage, 
-  fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  }
-});
-
-// Helper function to handle JSON fields if needed
-const jsonFields = []; // Add any JSON fields you need to handle here
-
-function stringifyJsonFields(data) {
-  jsonFields.forEach(field => {
-    if (data[field] && typeof data[field] !== 'string') {
-      data[field] = JSON.stringify(data[field]);
-    }
-  });
-  return data;
-}
-
-// POST or UPDATE employer record with photo upload support
-router.post("/", upload.single('profile_photo'), async (req, res) => {
+// POST or UPDATE employer record
+router.post("/", async (req, res) => {
   const data = req.body;
   const { temporary_id, user_id } = data;
 
@@ -67,11 +13,6 @@ router.post("/", upload.single('profile_photo'), async (req, res) => {
   }
 
   try {
-    // Handle file upload if present
-    if (req.file) {
-      data.profile_photo = `/images/${req.file.filename}`;
-    }
-
     // Check if the row exists
     const [existing] = await db.execute(
       `SELECT id FROM employer WHERE temporary_id = ? AND user_id = ?`,
@@ -200,8 +141,9 @@ router.get("/latest-temporary-id", async (req, res) => {
   }
 });
 
-// PUT - Update employer data by temporary_id and user_id with photo upload support
-router.put("/", upload.single('profile_photo'), async (req, res) => {
+
+// PUT - Update employer data by temporary_id and user_id
+router.put("/", async (req, res) => {
   const data = req.body;
   const { temporary_id, user_id } = data;
 
@@ -210,11 +152,6 @@ router.put("/", upload.single('profile_photo'), async (req, res) => {
   }
 
   try {
-    // Handle file upload if present
-    if (req.file) {
-      data.profile_photo = `/images/${req.file.filename}`;
-    }
-
     // Build update fields dynamically
     const fields = Object.keys(data)
       .filter(key => key !== "temporary_id" && key !== "user_id")
@@ -254,26 +191,12 @@ router.delete("/", async (req, res) => {
   }
 
   try {
-    // First get the record to check for profile photo
-    const [record] = await db.execute(
-      `SELECT profile_photo FROM employer WHERE temporary_id = ? AND user_id = ?`,
-      [temporary_id, user_id]
-    );
-
-    // Delete the record
     const [result] = await db.execute(
       `DELETE FROM employer WHERE temporary_id = ? AND user_id = ?`,
       [temporary_id, user_id]
     );
 
     if (result.affectedRows > 0) {
-      // If there was a profile photo, delete the file
-      if (record.length > 0 && record[0].profile_photo) {
-        const photoPath = path.join(__dirname, '..', record[0].profile_photo);
-        if (fs.existsSync(photoPath)) {
-          fs.unlinkSync(photoPath);
-        }
-      }
       res.json({ message: "Deleted successfully" });
     } else {
       res.status(404).json({ message: "No record found to delete" });
@@ -283,5 +206,6 @@ router.delete("/", async (req, res) => {
     res.status(500).json({ message: "Database error", error: err.message });
   }
 });
+
 
 module.exports = router;

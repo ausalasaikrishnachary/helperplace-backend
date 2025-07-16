@@ -28,13 +28,13 @@ router.get('/:id', async (req, res) => {
 
 // Create a new user
 router.post('/', async (req, res) => {
-  const { email, mobile_number, password, first_name, last_name, role, source } = req.body;
+  const { email, mobile_number, password, first_name, last_name, role, source, location, language_preference } = req.body;
   try {
     const query = `
-      INSERT INTO users (email, mobile_number, password, first_name, last_name, role, source)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (email, mobile_number, password, first_name, last_name, role, source, location, language_preference)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    const [result] = await db.query(query, [email, mobile_number, password, first_name, last_name, role, source]);
+    const [result] = await db.query(query, [email, mobile_number, password, first_name, last_name, role, source, location, language_preference]);
     res.status(201).json({
       id: result.insertId,
       email,
@@ -43,6 +43,8 @@ router.post('/', async (req, res) => {
       last_name,
       role, 
       source,
+      location,
+      language_preference
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -52,13 +54,15 @@ router.post('/', async (req, res) => {
 // Update user
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { email, mobile_number, password, first_name, last_name} = req.body;
+  const { email, mobile_number, password, first_name, last_name,  location, language_preference } = req.body;
   try {
     const query = `
-      UPDATE users SET email = ?, mobile_number = ?, password = ?, first_name = ?, last_name = ?
+      UPDATE users SET email = ?, mobile_number = ?, password = ?, first_name = ?, last_name = ?,  location = ?,
+      language_preference = ?
       WHERE id = ?
     `;
-    await db.query(query, [email, mobile_number, password, first_name, last_name, id]);
+    await db.query(query, [email, mobile_number, password, first_name, last_name,  location,
+      language_preference, id]);
     res.json({ message: 'User updated successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
