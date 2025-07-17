@@ -45,14 +45,36 @@ router.post('/agency', (req, res, next) => {
     }
 
     try {
-      // Safely get file paths and convert to relative paths
+      const {
+        role,
+        password,
+        agency_name,
+        city,
+        province,
+        country,
+        full_address,
+        whatsapp_numbers,
+        official_phone,
+        email,
+        website_url,
+        owner_name,
+        owner_nationality,
+        owner_mobile,
+        owner_email,
+        manager_name,
+        manager_nationality,
+        manager_mobile,
+        manager_email
+      } = req.body;
+
+      // Safely get file paths
       const files = req.files || {};
       const filePaths = {
-        company_logo: files.company_logo?.[0] ? path.join('uploads', path.basename(files.company_logo[0].path)) : null,
-        business_card: files.business_card?.[0] ? path.join('uploads', path.basename(files.business_card[0].path)) : null,
-        license_copy: files.license_copy?.[0] ? path.join('uploads', path.basename(files.license_copy[0].path)) : null,
-        owner_photo: files.owner_photo?.[0] ? path.join('uploads', path.basename(files.owner_photo[0].path)) : null,
-        manager_photo: files.manager_photo?.[0] ? path.join('uploads', path.basename(files.manager_photo[0].path)) : null
+        company_logo: files.company_logo?.[0]?.path || null,
+        business_card: files.business_card?.[0]?.path || null,
+        license_copy: files.license_copy?.[0]?.path || null,
+        owner_photo: files.owner_photo?.[0]?.path || null,
+        manager_photo: files.manager_photo?.[0]?.path || null
       };
 
       const agencyData = {
@@ -67,9 +89,9 @@ router.post('/agency', (req, res, next) => {
         if (err) {
           console.error('Database error:', err);
           // Clean up uploaded files if DB operation fails
-          Object.values(files).forEach(fileArray => {
-            if (fileArray && fileArray[0] && fs.existsSync(fileArray[0].path)) {
-              fs.unlinkSync(fileArray[0].path);
+          Object.values(filePaths).forEach(filePath => {
+            if (filePath && fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
             }
           });
           return res.status(500).json({ 
@@ -94,6 +116,7 @@ router.post('/agency', (req, res, next) => {
     }
   });
 });
+
 
 // GET - All agencies
 router.get('/agency', (req, res) => {
