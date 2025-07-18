@@ -28,13 +28,13 @@ router.get('/:id', async (req, res) => {
 
 // Create a new user
 router.post('/', async (req, res) => {
-  const { email, mobile_number, password, first_name, last_name, role, source, location, language_preference } = req.body;
+  const { email, mobile_number, password, first_name, last_name, role, source, location, language_preference, agency_uid } = req.body;
   try {
     const query = `
-      INSERT INTO users (email, mobile_number, password, first_name, last_name, role, source, location, language_preference)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (email, mobile_number, password, first_name, last_name, role, source, location, language_preference, agency_uid)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    const [result] = await db.query(query, [email, mobile_number, password, first_name, last_name, role, source, location, language_preference]);
+    const [result] = await db.query(query, [email, mobile_number, password, first_name, last_name, role, source, location, language_preference, agency_uid]);
     res.status(201).json({
       id: result.insertId,
       email,
@@ -44,7 +44,8 @@ router.post('/', async (req, res) => {
       role, 
       source,
       location,
-      language_preference
+      language_preference,
+      agency_uid
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

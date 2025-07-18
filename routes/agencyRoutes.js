@@ -96,37 +96,63 @@ router.post('/agency', (req, res, next) => {
 });
 
 // GET - All agencies
-router.get('/agency', (req, res) => {
-  db.query('SELECT * FROM agency_user', (err, results) => {
-    if (err) return res.status(500).json({ error: err });
+router.get('/agency', async (req, res) => {
+  try {
+    const [results] = await db.execute('SELECT * FROM agency_user');
     res.status(200).json(results);
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET - Single agency by ID
-router.get('/agency/:id', (req, res) => {
-  db.query('SELECT * FROM agency_user WHERE id = ?', [req.params.id], (err, results) => {
-    if (err) return res.status(500).json({ error: err });
-    if (results.length === 0) return res.status(404).json({ message: 'Agency not found' });
+router.get('/agency/:id', async (req, res) => {
+  try {
+    const [results] = await db.execute('SELECT * FROM agency_user WHERE id = ?', [req.params.id]);
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Agency not found' });
+    }
     res.status(200).json(results[0]);
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // PUT - Update agency by ID
-router.put('/agency/:id', (req, res) => {
-  const data = req.body;
-  db.query('UPDATE agency_user SET ? WHERE id = ?', [data, req.params.id], (err, result) => {
-    if (err) return res.status(500).json({ error: err });
+router.put('/agency/:id', async (req, res) => {
+  try {
+    const fields = req.body;
+    const keys = Object.keys(fields);
+    
+    if (keys.length === 0) {
+      return res.status(400).json({ error: 'No fields provided to update' });
+    }
+
+    // Build dynamic SET clause
+    const setClause = keys.map(key => `${key} = ?`).join(', ');
+    const values = keys.map(key => fields[key]);
+    values.push(req.params.id); // Add id for the WHERE clause
+
+    const sql = `UPDATE agency_user SET ${setClause} WHERE id = ?`;
+
+    const [result] = await db.execute(sql, values);
+
     res.status(200).json({ message: 'Agency updated' });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
+
 // DELETE - Delete agency by ID
-router.delete('/agency/:id', (req, res) => {
-  db.query('DELETE FROM agency_user WHERE id = ?', [req.params.id], (err, result) => {
-    if (err) return res.status(500).json({ error: err });
+router.delete('/agency/:id', async (req, res) => {
+  try {
+    const [result] = await db.execute('DELETE FROM agency_user WHERE id = ?', [req.params.id]);
     res.status(200).json({ message: 'Agency deleted' });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
+
 
 module.exports = router;
