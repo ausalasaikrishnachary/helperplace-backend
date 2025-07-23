@@ -209,29 +209,40 @@ router.put("/", upload.single('profile_photo'), async (req, res) => {
     return res.status(400).json({ message: "temporary_id and user_id are required" });
   }
 
+  let setClause;
+  let values;
+
   try {
     // Handle file upload if present
     if (req.file) {
       data.profile_photo = `/images/${req.file.filename}`;
     }
 
-    // Build update fields dynamically
-    const fields = Object.keys(data)
-      .filter(key => key !== "temporary_id" && key !== "user_id")
-      .map(key => `${key} = ?`)
-      .join(", ");
-
-    const values = Object.keys(data)
-      .filter(key => key !== "temporary_id" && key !== "user_id")
-      .map(key => data[key]);
-
-    if (fields.length === 0) {
+    // Filter out temporary_id and user_id from update fields
+    const updateFields = Object.keys(data)
+      .filter(key => key !== "temporary_id" && key !== "user_id");
+    
+    if (updateFields.length === 0) {
       return res.status(400).json({ message: "No fields to update" });
     }
 
+    // Build the SET clause and prepare values
+    setClause = updateFields.map(key => `${key} = ?`).join(", ");
+    
+    // Convert array values to JSON strings
+    values = updateFields.map(key => {
+      const value = data[key];
+      return Array.isArray(value) ? JSON.stringify(value) : value;
+    });
+    
+    values.push(temporary_id, user_id);
+
+    console.log("Executing query:", `UPDATE employer SET ${setClause} WHERE temporary_id = ? AND user_id = ?`);
+    console.log("With values:", values);
+
     const [result] = await db.execute(
-      `UPDATE employer SET ${fields} WHERE temporary_id = ? AND user_id = ?`,
-      [...values, temporary_id, user_id]
+      `UPDATE employer SET ${setClause} WHERE temporary_id = ? AND user_id = ?`,
+      values
     );
 
     if (result.affectedRows > 0) {
@@ -240,8 +251,17 @@ router.put("/", upload.single('profile_photo'), async (req, res) => {
       res.status(404).json({ message: "No record found to update" });
     }
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Database error", error: err.message });
+    console.error('Database error:', {
+      error: err,
+      constructedQuery: `UPDATE employer SET ${setClause} WHERE temporary_id = ? AND user_id = ?`,
+      values: values,
+      dataReceived: data
+    });
+    
+    res.status(500).json({ 
+      message: "Database error", 
+      error: err.message
+    });
   }
 });
 
