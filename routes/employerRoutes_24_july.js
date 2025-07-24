@@ -5,7 +5,6 @@ const db = require('../db'); // adjust path if needed
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const emailService = require('./emailService'); // Add this line
 
 // Ensure images folder exists
 if (!fs.existsSync('images')) {
@@ -57,23 +56,6 @@ function stringifyJsonFields(data) {
   });
   return data;
 }
-
-// New endpoint for subscription reminders
-router.get("/check-subscriptions", async (req, res) => {
-  try {
-    const result = await emailService.checkAndSendSubscriptionReminders(db);
-    res.json({
-      message: "Subscription reminders processed",
-      details: result
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ 
-      message: "Error processing subscription reminders",
-      error: err.message
-    });
-  }
-});
 
 // POST or UPDATE employer record with photo upload support
 router.post("/", upload.single('profile_photo'), async (req, res) => {

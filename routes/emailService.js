@@ -23,7 +23,7 @@ const sendThanksEmail = async (to, firstName) => {
         subject: 'Thanks for joining Gudnet!',
         html: `
       <p>Hi ${firstName},</p>
-      <p>Thank you for registering with <strong>Gudnet</strong>. We’re glad to have you onboard!</p>
+      <p>Thank you for registering with <strong>Gudnet</strong>. We're glad to have you onboard!</p>
       <p>Warm regards,<br/>Gudnet Team</p>
     `
     };
@@ -66,16 +66,106 @@ const sendWelcomeEmail = async (to, firstName, lastName, role = 'employer') => {
     return transporter.sendMail(mailOptions);
 };
 
-
-// Combine both
-const sendOnboardingEmails = async (to, firstName, lastName, role) => {
-  await sendThanksEmail(to, firstName);
-  await sendWelcomeEmail(to, firstName, lastName, role); // ✅ now role is passed properly
+// 3️⃣ Subscription Expiry Reminder (1 week before)
+const sendSubscriptionExpiryReminder = async (to, firstName, endDate) => {
+    const formattedDate = new Date(endDate).toLocaleDateString();
+    const mailOptions = {
+        from: '"Gudnet Team" <rajeshyanamadala2000@gmail.com>',
+        to,
+        subject: 'Your Subscription is About to Expire',
+        html: `
+      <p>Hi ${firstName},</p>
+      <p>Your Gudnet subscription will expire in one week (on ${formattedDate}).</p>
+      <p>To continue enjoying uninterrupted service, please renew your subscription.</p>
+      <p>Warm regards,<br/>Gudnet Team</p>
+    `
+    };
+    return transporter.sendMail(mailOptions);
 };
 
+// 4️⃣ Subscription Expired Notification
+const sendSubscriptionExpiredNotification = async (to, firstName) => {
+    const mailOptions = {
+        from: '"Gudnet Team" <rajeshyanamadala2000@gmail.com>',
+        to,
+        subject: 'Your Subscription Has Expired',
+        html: `
+      <p>Hi ${firstName},</p>
+      <p>Your Gudnet subscription has now expired.</p>
+      <p>To continue using our services, please renew your subscription at your earliest convenience.</p>
+      <p>Warm regards,<br/>Gudnet Team</p>
+    `
+    };
+    return transporter.sendMail(mailOptions);
+};
+
+// Combine both onboarding emails
+const sendOnboardingEmails = async (to, firstName, lastName, role) => {
+    await sendThanksEmail(to, firstName);
+    await sendWelcomeEmail(to, firstName, lastName, role);
+};
+
+// Check and send subscription reminders
+const checkAndSendSubscriptionReminders = async (db) => {
+    try {
+        const today = new Date();
+        const oneWeekLater = new Date();
+        oneWeekLater.setDate(today.getDate() + 7);
+
+        // Format dates for SQL query
+        const todayStr = today.toISOString().split('T')[0];
+        const oneWeekLaterStr = oneWeekLater.toISOString().split('T')[0];
+
+        // Find subscriptions expiring in exactly 7 days
+        const [expiringSoon] = await db.execute(
+            `SELECT e.user_id, e.name, e.email_id, e.plan_enddate 
+             FROM employer e
+             WHERE e.plan_enddate = ?`,
+            [oneWeekLaterStr]
+        );
+
+        // Find subscriptions expiring today
+        const [expiringToday] = await db.execute(
+            `SELECT e.user_id, e.name, e.email_id, e.plan_enddate 
+             FROM employer e
+             WHERE e.plan_enddate = ?`,
+            [todayStr]
+        );
+
+        // Send reminders
+        for (const employer of expiringSoon) {
+            await sendSubscriptionExpiryReminder(
+                employer.email_id,
+                employer.name,
+                employer.plan_enddate
+            );
+            console.log(`Sent expiry reminder to ${employer.email_id}`);
+        }
+
+        // Send expired notifications
+        for (const employer of expiringToday) {
+            await sendSubscriptionExpiredNotification(
+                employer.email_id,
+                employer.name
+            );
+            console.log(`Sent expiry notification to ${employer.email_id}`);
+        }
+
+        return {
+            expiringSoonCount: expiringSoon.length,
+            expiringTodayCount: expiringToday.length
+        };
+    } catch (err) {
+        console.error('Error in subscription reminders:', err);
+        throw err;
+    }
+};
 
 module.exports = {
     sendThanksEmail,
     sendWelcomeEmail,
-    sendOnboardingEmails
+    sendOnboardingEmails,
+    sendSubscriptionExpiryReminder,
+    sendSubscriptionExpiredNotification,
+    checkAndSendSubscriptionReminders
 };

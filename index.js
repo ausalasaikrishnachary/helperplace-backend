@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors'); // ✅ Import CORS
 const app = express();
+const path = require('path'); // ✅ Add this line
 const port = 5000;
 
 // ✅ Use CORS Middleware (allows requests from any origin)
