@@ -20,14 +20,16 @@ const jobSeekerRoutes = require('./routes/jobSeekerRoutes');
 const agencyRoutes = require('./routes/agencyRoutes');
 const employerRoutes = require('./routes/employerRoutes');
 const applyRoutes = require('./routes/applyRoutes');
-
+const job_reportRoutes = require('./routes/job_reportRoutes');
+const candidate_reportRoutes = require('./routes/candidate_reportRoutes');
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
 app.use('/api', agencyRoutes);
 app.use("/api/employer", employerRoutes);
 app.use("/", applyRoutes);
-
+app.use("/api/jobreport", job_reportRoutes);
+app.use("/api/candidatereport", candidate_reportRoutes);
 
 // Start server
 app.listen(port, () => {
