@@ -2,7 +2,8 @@
 
 const express = require('express');
 const router = express.Router();
-const db = require('../db'); // adjust the path as needed
+const db = require('../db');
+const { sendOnboardingEmails } = require('./emailService');
 
 // Get all users
 router.get('/', async (req, res) => {
@@ -28,26 +29,39 @@ router.get('/:id', async (req, res) => {
 
 // Create a new user
 router.post('/', async (req, res) => {
-  const { email, mobile_number, password, first_name, last_name, role, source, location, language_preference, agency_uid } = req.body;
+  const {
+    email, mobile_number, password, first_name, last_name,
+    role, source, location, language_preference, agency_uid
+  } = req.body;
+
   try {
     const query = `
       INSERT INTO users (email, mobile_number, password, first_name, last_name, role, source, location, language_preference, agency_uid)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    const [result] = await db.query(query, [email, mobile_number, password, first_name, last_name, role, source, location, language_preference, agency_uid]);
+    const [result] = await db.query(query, [
+      email, mobile_number, password, first_name, last_name,
+      role, source, location, language_preference, agency_uid
+    ]);
+
+    // Send welcome email
+    await sendOnboardingEmails(email, first_name, last_name, role);
+
     res.status(201).json({
       id: result.insertId,
       email,
       mobile_number,
       first_name,
       last_name,
-      role, 
+      role,
       source,
       location,
       language_preference,
       agency_uid
     });
+
   } catch (err) {
+    console.error('Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -55,14 +69,14 @@ router.post('/', async (req, res) => {
 // Update user
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { email, mobile_number, password, first_name, last_name,  location, language_preference } = req.body;
+  const { email, mobile_number, password, first_name, last_name, location, language_preference } = req.body;
   try {
     const query = `
       UPDATE users SET email = ?, mobile_number = ?, password = ?, first_name = ?, last_name = ?,  location = ?,
       language_preference = ?
       WHERE id = ?
     `;
-    await db.query(query, [email, mobile_number, password, first_name, last_name,  location,
+    await db.query(query, [email, mobile_number, password, first_name, last_name, location,
       language_preference, id]);
     res.json({ message: 'User updated successfully' });
   } catch (err) {

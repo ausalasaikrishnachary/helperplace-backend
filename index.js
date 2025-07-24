@@ -12,6 +12,7 @@ app.use(express.json());
 
 app.use('/images', express.static('images'));
 app.use('/videos', express.static('videos'));
+app.use('/templates', express.static(path.join(__dirname, 'templates')));
 
 
 // Routes
