@@ -1,24 +1,12 @@
 // emailService.js
-const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
-
-// Gmail transporter setup
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: 'rajeshyanamadala2000@gmail.com',
-        pass: 'thpr ipkp cubr hupw' // Gmail App Password
-    },
-    tls: {
-        rejectUnauthorized: false
-    }
-});
+const { transporter, ADMIN_EMAIL } = require('./nodemailer');
 
 // 1️⃣ Thanks for joining email
 const sendThanksEmail = async (to, firstName) => {
     const mailOptions = {
-        from: '"Gudnet Team" <rajeshyanamadala2000@gmail.com>',
+        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Thanks for joining Gudnet!',
         html: `
@@ -57,7 +45,7 @@ const sendWelcomeEmail = async (to, firstName, lastName, role = 'employer') => {
     }
 
     const mailOptions = {
-        from: '"Gudnet Team" <rajeshyanamadala2000@gmail.com>',
+        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Welcome to Gudnet!',
         html: htmlContent
@@ -70,7 +58,7 @@ const sendWelcomeEmail = async (to, firstName, lastName, role = 'employer') => {
 const sendSubscriptionExpiryReminder = async (to, firstName, endDate) => {
     const formattedDate = new Date(endDate).toLocaleDateString();
     const mailOptions = {
-        from: '"Gudnet Team" <rajeshyanamadala2000@gmail.com>',
+        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Your Subscription is About to Expire',
         html: `
@@ -86,7 +74,7 @@ const sendSubscriptionExpiryReminder = async (to, firstName, endDate) => {
 // 4️⃣ Subscription Expired Notification
 const sendSubscriptionExpiredNotification = async (to, firstName) => {
     const mailOptions = {
-        from: '"Gudnet Team" <rajeshyanamadala2000@gmail.com>',
+        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Your Subscription Has Expired',
         html: `
