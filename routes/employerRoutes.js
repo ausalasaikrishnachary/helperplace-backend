@@ -58,6 +58,37 @@ function stringifyJsonFields(data) {
   return data;
 }
 
+// Function to calculate filled columns percentage
+async function calculateColumnsPercentage(data) {
+  try {
+    // Get all columns from the employer table except columns_percentage and auto-increment fields
+    const [columnsInfo] = await db.execute(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_NAME = 'employer' 
+      AND COLUMN_NAME NOT IN ('columns_percentage', 'id', 'created_at', 'updated_at')
+    `);
+    
+    const totalColumns = columnsInfo.length;
+    let filledColumns = 0;
+
+    // Count how many columns are filled in the data
+    for (const column of columnsInfo) {
+      const columnName = column.COLUMN_NAME;
+      if (data[columnName] !== undefined && data[columnName] !== null && data[columnName] !== '') {
+        filledColumns++;
+      }
+    }
+
+    // Calculate percentage
+    const percentage = Math.round((filledColumns / totalColumns) * 100);
+    return percentage;
+  } catch (err) {
+    console.error('Error calculating columns percentage:', err);
+    return 0;
+  }
+}
+
 // New endpoint for subscription reminders
 router.get("/check-subscriptions", async (req, res) => {
   try {
@@ -90,15 +121,21 @@ router.post("/", upload.single('profile_photo'), async (req, res) => {
       data.profile_photo = `/images/${req.file.filename}`;
     }
 
+    // Calculate columns percentage with the new data
+    const percentage = await calculateColumnsPercentage(data);
+    data.columns_percentage = percentage;
+
     // Check if the row exists
     const [existing] = await db.execute(
-      `SELECT id FROM employer WHERE temporary_id = ? AND user_id = ?`,
+      `SELECT id, plan_name, plan_enddate FROM employer WHERE temporary_id = ? AND user_id = ?`,
       [temporary_id, user_id]
     );
 
     if (existing.length > 0) {
       // Row exists -> update
       const id = existing[0].id;
+      const previousPlanName = existing[0].plan_name;
+      const previousPlanEndDate = existing[0].plan_enddate;
 
       const fields = Object.keys(data)
         .filter(key => key !== "temporary_id" && key !== "user_id")
@@ -114,19 +151,35 @@ router.post("/", upload.single('profile_photo'), async (req, res) => {
         [...values, temporary_id, user_id]
       );
 
-      res.json({ message: "Updated successfully", id });
+      // Check if subscription was renewed
+      if (data.plan_name && data.plan_enddate && 
+          (data.plan_name !== previousPlanName || data.plan_enddate !== previousPlanEndDate)) {
+        await emailService.sendSubscriptionRenewalConfirmation(
+          data.email_id || existing[0].email_id,
+          data.name || existing[0].name,
+          data.plan_name,
+          data.plan_enddate
+        );
+        console.log(`Sent renewal confirmation to ${data.email_id || existing[0].email_id}`);
+      }
+
+      res.json({ message: "Updated successfully", id, columns_percentage: percentage });
     } else {
       // Insert new row
       const keys = Object.keys(data);
       const values = Object.values(data);
       const placeholders = keys.map(() => "?").join(", ");
 
-      await db.execute(
+      const [result] = await db.execute(
         `INSERT INTO employer (${keys.join(", ")}) VALUES (${placeholders})`,
         values
       );
 
-      res.json({ message: "Inserted successfully" });
+      res.json({ 
+        message: "Inserted successfully", 
+        id: result.insertId,
+        columns_percentage: percentage 
+      });
     }
   } catch (err) {
     console.error(err);
@@ -218,6 +271,23 @@ router.get("/latest-temporary-id", async (req, res) => {
   }
 });
 
+// New endpoint for low views reminders
+router.get("/check-low-views", async (req, res) => {
+  try {
+    const result = await emailService.checkAndSendLowViewsReminders(db);
+    res.json({
+      message: "Low views reminders processed",
+      details: result
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ 
+      message: "Error processing low views reminders",
+      error: err.message
+    });
+  }
+});
+
 // PUT - Update employer data by temporary_id and user_id with photo upload support
 router.put("/", upload.single('profile_photo'), async (req, res) => {
   const data = req.body;
@@ -235,6 +305,26 @@ router.put("/", upload.single('profile_photo'), async (req, res) => {
     if (req.file) {
       data.profile_photo = `/images/${req.file.filename}`;
     }
+
+    // First get the existing record to check for subscription changes and merge data
+    const [existing] = await db.execute(
+      `SELECT * FROM employer WHERE temporary_id = ? AND user_id = ?`,
+      [temporary_id, user_id]
+    );
+
+    if (existing.length === 0) {
+      return res.status(404).json({ message: "No record found to update" });
+    }
+
+    const previousPlanName = existing[0].plan_name;
+    const previousPlanEndDate = existing[0].plan_enddate;
+
+    // Merge existing data with new data to calculate percentage accurately
+    const mergedData = { ...existing[0], ...data };
+    
+    // Calculate columns percentage with merged data
+    const percentage = await calculateColumnsPercentage(mergedData);
+    data.columns_percentage = percentage;
 
     // Filter out temporary_id and user_id from update fields
     const updateFields = Object.keys(data)
@@ -255,16 +345,28 @@ router.put("/", upload.single('profile_photo'), async (req, res) => {
     
     values.push(temporary_id, user_id);
 
-    console.log("Executing query:", `UPDATE employer SET ${setClause} WHERE temporary_id = ? AND user_id = ?`);
-    console.log("With values:", values);
-
     const [result] = await db.execute(
       `UPDATE employer SET ${setClause} WHERE temporary_id = ? AND user_id = ?`,
       values
     );
 
     if (result.affectedRows > 0) {
-      res.json({ message: "Updated successfully" });
+      // Check if subscription was renewed
+      if (data.plan_name && data.plan_enddate && 
+          (data.plan_name !== previousPlanName || data.plan_enddate !== previousPlanEndDate)) {
+        await emailService.sendSubscriptionRenewalConfirmation(
+          data.email_id || existing[0].email_id,
+          data.name || existing[0].name,
+          data.plan_name,
+          data.plan_enddate
+        );
+        console.log(`Sent renewal confirmation to ${data.email_id || existing[0].email_id}`);
+      }
+
+      res.json({ 
+        message: "Updated successfully", 
+        columns_percentage: percentage 
+      });
     } else {
       res.status(404).json({ message: "No record found to update" });
     }
@@ -315,6 +417,31 @@ router.delete("/", async (req, res) => {
       res.json({ message: "Deleted successfully" });
     } else {
       res.status(404).json({ message: "No record found to delete" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+
+// New endpoint to get columns percentage for a specific employer
+router.get("/columns-percentage", async (req, res) => {
+  const { temporary_id, user_id } = req.query;
+
+  if (!temporary_id || !user_id) {
+    return res.status(400).json({ message: "temporary_id and user_id are required" });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT columns_percentage FROM employer WHERE temporary_id = ? AND user_id = ?`,
+      [temporary_id, user_id]
+    );
+
+    if (rows.length > 0) {
+      res.json({ columns_percentage: rows[0].columns_percentage });
+    } else {
+      res.status(404).json({ message: "No data found" });
     }
   } catch (err) {
     console.error(err);

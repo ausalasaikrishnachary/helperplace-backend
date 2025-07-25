@@ -1,19 +1,23 @@
 const express = require('express');
-const cors = require('cors'); // ✅ Import CORS
+const cors = require('cors');
 const app = express();
+
+const path = require('path');
+const cron = require('node-cron');
+const emailService = require('./routes/emailService');
+const db = require('./db');
+
+
 const port = 5000;
 
-// ✅ Use CORS Middleware (allows requests from any origin)
+// Middleware
 app.use(cors());
-
-// Middleware to parse JSON
 app.use(express.json());
 
-
+// Static file routes
 app.use('/images', express.static('images'));
 app.use('/videos', express.static('videos'));
 app.use('/templates', express.static(path.join(__dirname, 'templates')));
-
 
 // Routes
 const userRoutes = require('./routes/userRoutes');
@@ -23,6 +27,7 @@ const employerRoutes = require('./routes/employerRoutes');
 const applyRoutes = require('./routes/applyRoutes');
 const job_reportRoutes = require('./routes/job_reportRoutes');
 const candidate_reportRoutes = require('./routes/candidate_reportRoutes');
+const forgotpassword = require('./routes/forgotpassword');
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
@@ -31,6 +36,23 @@ app.use("/api/employer", employerRoutes);
 app.use("/", applyRoutes);
 app.use("/api/jobreport", job_reportRoutes);
 app.use("/api/candidatereport", candidate_reportRoutes);
+
+app.use('/', forgotpassword);
+require('./routes/inactivityChecker');
+
+// Schedule daily subscription reminder at 1:30 PM IST (08:00 AM UTC)
+// ✅ Schedule daily subscription reminder at 1:30 PM IST
+cron.schedule('52 18 * * *', async () => {
+  console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
+  try {
+    const result = await emailService.checkAndSendSubscriptionReminders(db);
+    console.log('✅ Subscription reminders processed:', result);
+  } catch (err) {
+    console.error('❌ Error in scheduled subscription reminders:', err);
+  }
+}, {
+  timezone: 'Asia/Kolkata'
+});
 
 // Start server
 app.listen(port, () => {
