@@ -112,6 +112,13 @@ router.post('/login', async (req, res) => {
 
     if (userResults.length > 0) {
       const user = userResults[0];
+      
+      // Update login activity for the user
+      await db.query(
+        'UPDATE users SET last_login_date = NOW() WHERE id = ?',
+        [user.id]
+      );
+      
       return res.json({
         message: 'Login successful',
         user: {
@@ -123,7 +130,7 @@ router.post('/login', async (req, res) => {
           role: user.role,
           is_verified: user.is_verified,
           created_at: user.created_at,
-          user_type: 'general' // you can optionally differentiate users
+          user_type: 'general' 
         }
       });
     }
@@ -136,6 +143,13 @@ router.post('/login', async (req, res) => {
 
     if (agencyResults.length > 0) {
       const agencyUser = agencyResults[0];
+      
+      // Update login activity for agency user
+      await db.query(
+        'UPDATE agency_user SET last_login_date = NOW() WHERE id = ?',
+        [agencyUser.id]
+      );
+      
       return res.json({
         message: 'Login successful',
         user: {
@@ -147,7 +161,7 @@ router.post('/login', async (req, res) => {
           role: agencyUser.role,
           is_verified: agencyUser.is_verified,
           created_at: agencyUser.created_at,
-          user_type: 'agency' // differentiate if needed
+          user_type: 'agency'
         }
       });
     }
