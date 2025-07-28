@@ -164,12 +164,48 @@ router.put('/job-seeker/:id', async (req, res) => {
   }
 });
 
-// ✅ DELETE: Delete by ID
+// ✅ DELETE: Delete by ID (deletes entire record)
 router.delete('/job-seeker/:id', async (req, res) => {
   try {
     const userId = req.params.id;
     await db.query('DELETE FROM job_seekers WHERE user_id = ?', [userId]);
     res.json({ message: 'Job seeker deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ DELETE: Delete only profile photo by ID
+router.delete('/job-seeker/:id/photo', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // First get the current profile photo path
+    const [results] = await db.query('SELECT profile_photo FROM job_seekers WHERE user_id = ?', [userId]);
+    
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const profilePhotoPath = results[0].profile_photo;
+    
+    // Update the database to remove the profile photo
+    await db.query('UPDATE job_seekers SET profile_photo = NULL WHERE user_id = ?', [userId]);
+    
+    // Optionally delete the physical file (uncomment if you want this)
+    /*
+    if (profilePhotoPath) {
+      const fullPath = path.join(__dirname, '..', profilePhotoPath);
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+    }
+    */
+    
+    res.json({ 
+      message: 'Profile photo deleted',
+      deletedPhotoPath: profilePhotoPath 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

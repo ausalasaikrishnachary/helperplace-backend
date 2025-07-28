@@ -53,7 +53,25 @@ const sendWelcomeEmail = async (to, firstName, lastName, role = 'employer') => {
     return transporter.sendMail(mailOptions);
 };
 
-// 3️⃣ Subscription Expiry Reminder (1 week before)
+// 3️⃣ OTP Verification Email
+const sendOtpEmail = async (to, otp) => {
+    const mailOptions = {
+        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: 'Your Verification Code',
+        html: `
+      <p>Hello,</p>
+      <p>Your verification code for Gudnet is:</p>
+      <h2 style="margin: 20px 0; color: #2563eb; font-size: 28px;">${otp}</h2>
+      <p>This code will expire in 10 minutes.</p>
+      <p>If you didn't request this code, please ignore this email.</p>
+      <p>Best regards,<br/>Gudnet Team</p>
+    `
+    };
+    return transporter.sendMail(mailOptions);
+};
+
+// 4️⃣ Subscription Expiry Reminder (1 week before)
 const sendSubscriptionExpiryReminder = async (to, firstName, endDate) => {
     const formattedDate = new Date(endDate).toLocaleDateString();
     const mailOptions = {
@@ -70,7 +88,7 @@ const sendSubscriptionExpiryReminder = async (to, firstName, endDate) => {
     return transporter.sendMail(mailOptions);
 };
 
-// 4️⃣ Subscription Expired Notification
+// 5️⃣ Subscription Expired Notification
 const sendSubscriptionExpiredNotification = async (to, firstName) => {
     const mailOptions = {
         from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
@@ -86,7 +104,7 @@ const sendSubscriptionExpiredNotification = async (to, firstName) => {
     return transporter.sendMail(mailOptions);
 };
 
-// 5️⃣ Job Posting Expired Notification (sent when subscription expires)
+// 6️⃣ Job Posting Expired Notification (sent when subscription expires)
 const sendJobpostingexpiredNotification = async (to, firstName) => {
     const mailOptions = {
         from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
@@ -102,7 +120,7 @@ const sendJobpostingexpiredNotification = async (to, firstName) => {
     return transporter.sendMail(mailOptions);
 };
 
-// 6️⃣ Free Trial Ending Reminder (1 day before)
+// 7️⃣ Free Trial Ending Reminder (1 day before)
 const sendFreeTrialEndingReminder = async (to, firstName, endDate) => {
     const formattedDate = new Date(endDate).toLocaleDateString();
     const mailOptions = {
@@ -119,7 +137,7 @@ const sendFreeTrialEndingReminder = async (to, firstName, endDate) => {
     return transporter.sendMail(mailOptions);
 };
 
-// 7️⃣ Subscription Renewal Confirmation
+// 8️⃣ Subscription Renewal Confirmation
 const sendSubscriptionRenewalConfirmation = async (to, firstName, planName, endDate) => {
     const formattedDate = new Date(endDate).toLocaleDateString();
     const mailOptions = {
@@ -137,7 +155,7 @@ const sendSubscriptionRenewalConfirmation = async (to, firstName, planName, endD
     return transporter.sendMail(mailOptions);
 };
 
-// 8️⃣ Plan Upgrade Suggestion (1 day before expiry)
+// 9️⃣ Plan Upgrade Suggestion (1 day before expiry)
 const sendPlanUpgradeSuggestion = async (to, firstName, currentPlan, endDate) => {
     const formattedDate = new Date(endDate).toLocaleDateString('en-IN');
     
@@ -185,7 +203,7 @@ const sendPlanUpgradeSuggestion = async (to, firstName, currentPlan, endDate) =>
     await transporter.sendMail(mailOptions);
 };
 
-// 9️⃣ Low Views Reminder
+// 🔟 Low Views Reminder
 const sendLowViewsReminder = async (to, firstName, jobTitle, viewCount) => {
     const mailOptions = {
         from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
@@ -388,6 +406,7 @@ const sendInactivityNotification = async (to, firstName, daysInactive) => {
 module.exports = {
     sendThanksEmail,
     sendWelcomeEmail,
+    sendOtpEmail,
     sendOnboardingEmails,
     sendSubscriptionExpiryReminder,
     sendSubscriptionExpiredNotification,
