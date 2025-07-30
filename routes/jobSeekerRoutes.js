@@ -192,16 +192,6 @@ router.delete('/job-seeker/:id/photo', async (req, res) => {
     // Update the database to remove the profile photo
     await db.query('UPDATE job_seekers SET profile_photo = NULL WHERE user_id = ?', [userId]);
     
-    // Optionally delete the physical file (uncomment if you want this)
-    /*
-    if (profilePhotoPath) {
-      const fullPath = path.join(__dirname, '..', profilePhotoPath);
-      if (fs.existsSync(fullPath)) {
-        fs.unlinkSync(fullPath);
-      }
-    }
-    */
-    
     res.json({ 
       message: 'Profile photo deleted',
       deletedPhotoPath: profilePhotoPath 

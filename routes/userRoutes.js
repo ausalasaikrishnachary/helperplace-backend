@@ -4,6 +4,7 @@ const db = require('../db');
 const { sendOnboardingEmails } = require('./emailService');
 const crypto = require('crypto');
 const { sendOtpEmail } = require('./emailService'); // You'll need to implement this
+const { sendProfileRejectedEmail } = require('./emailService');
 
 // OTP storage (in production, use Redis or database)
 const otpStore = new Map();
@@ -36,7 +37,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Send OTP for registration
-router.post('/send-otp', async (req, res) => {
+router.post('/send-reg-otp', async (req, res) => {
   const { email } = req.body;
 
   if (!email) {
@@ -276,6 +277,32 @@ router.post('/login', async (req, res) => {
 
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/api/send-rejection-email', async (req, res) => {
+  const { email, firstName } = req.body;
+  
+  // Validate required fields
+  if (!email || !firstName) {
+    return res.status(400).json({ 
+      success: false,
+      message: 'Both email and firstName are required'
+    });
+  }
+
+  try {
+    await sendProfileRejectedEmail(email, firstName);
+    res.json({ 
+      success: true,
+      message: 'Rejection email sent successfully' 
+    });
+  } catch (err) {
+    console.error('Error sending rejection email:', err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message || 'Failed to send rejection email'
+    });
   }
 });
 

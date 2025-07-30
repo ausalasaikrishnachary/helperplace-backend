@@ -26,21 +26,57 @@ router.get('/:id', async (req, res) => {
 
 // Create a new subscription plan
 router.post('/', async (req, res) => {
-  const { plan_name, description } = req.body;
+  const {
+    plan_name,
+    listing_duration_days,
+    access_type,
+    job_position_priority,
+    messaging_limit,
+    whatsapp_access,
+    direct_call_access,
+    share_option,
+    view_limit,
+    alerts_for_new_cvs,
+    full_contact_details,
+    activate_deactivate_option
+  } = req.body;
 
   try {
     const query = `
-      INSERT INTO subscription_plans (plan_name, description)
-      VALUES (?, ?)
+      INSERT INTO subscription_plans (
+        plan_name,
+        listing_duration_days,
+        access_type,
+        job_position_priority,
+        messaging_limit,
+        whatsapp_access,
+        direct_call_access,
+        share_option,
+        view_limit,
+        alerts_for_new_cvs,
+        full_contact_details,
+        activate_deactivate_option
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
+    
     const [result] = await db.query(query, [
-      plan_name, description
+      plan_name,
+      listing_duration_days,
+      access_type,
+      job_position_priority,
+      messaging_limit,
+      whatsapp_access,
+      direct_call_access,
+      share_option,
+      view_limit,
+      alerts_for_new_cvs,
+      full_contact_details,
+      activate_deactivate_option
     ]);
 
     res.status(201).json({
       id: result.insertId,
-      plan_name,
-      description
+      ...req.body
     });
 
   } catch (err) {
@@ -52,13 +88,56 @@ router.post('/', async (req, res) => {
 // Update subscription plan
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { plan_name, description } = req.body;
+  const {
+    plan_name,
+    listing_duration_days,
+    access_type,
+    job_position_priority,
+    messaging_limit,
+    whatsapp_access,
+    direct_call_access,
+    share_option,
+    view_limit,
+    alerts_for_new_cvs,
+    full_contact_details,
+    activate_deactivate_option
+  } = req.body;
+
   try {
     const query = `
-      UPDATE subscription_plans SET plan_name = ?, description = ?
+      UPDATE subscription_plans SET 
+        plan_name = ?,
+        listing_duration_days = ?,
+        access_type = ?,
+        job_position_priority = ?,
+        messaging_limit = ?,
+        whatsapp_access = ?,
+        direct_call_access = ?,
+        share_option = ?,
+        view_limit = ?,
+        alerts_for_new_cvs = ?,
+        full_contact_details = ?,
+        activate_deactivate_option = ?,
+        updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
-    await db.query(query, [plan_name, description, id]);
+    
+    await db.query(query, [
+      plan_name,
+      listing_duration_days,
+      access_type,
+      job_position_priority,
+      messaging_limit,
+      whatsapp_access,
+      direct_call_access,
+      share_option,
+      view_limit,
+      alerts_for_new_cvs,
+      full_contact_details,
+      activate_deactivate_option,
+      id
+    ]);
+
     res.json({ message: 'Subscription plan updated successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });

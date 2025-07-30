@@ -227,6 +227,22 @@ const sendLowViewsReminder = async (to, firstName, jobTitle, viewCount) => {
     return transporter.sendMail(mailOptions);
 };
 
+const sendProfileRejectedEmail = async (to, firstName) => {
+    const mailOptions = {
+        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: 'Your Profile Has Been Rejected',
+        html: `
+      <p>Hi ${firstName},</p>
+      <p>We regret to inform you that your profile on Gudnet has been rejected and removed from our platform.</p>
+      <p>This decision was made after careful review by our team.</p>
+      <p>If you believe this was a mistake or would like more information, please reply to this email.</p>
+      <p>Best regards,<br/>Gudnet Team</p>
+    `
+    };
+    return transporter.sendMail(mailOptions);
+};
+
 // Combine both onboarding emails
 const sendOnboardingEmails = async (to, firstName, lastName, role) => {
     await sendThanksEmail(to, firstName);
@@ -417,5 +433,6 @@ module.exports = {
     sendLowViewsReminder,
     checkAndSendSubscriptionReminders,
     checkAndSendLowViewsReminders,
-    sendInactivityNotification
+    sendInactivityNotification,
+    sendProfileRejectedEmail
 };
