@@ -253,6 +253,31 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET employer data by id
+router.get("/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({ message: "id is required" });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT * FROM employer WHERE id = ?`,
+      [id]
+    );
+
+    if (rows.length > 0) {
+      res.json(rows[0]);
+    } else {
+      res.status(404).json({ message: "No data found for this id" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+
 // GET - Latest temporary_id
 router.get("/latest-temporary-id", async (req, res) => {
   try {
@@ -446,6 +471,103 @@ router.get("/columns-percentage", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+
+// PUT - Update employer data by ID with photo upload support
+router.put("/:id", upload.single('profile_photo'), async (req, res) => {
+  const { id } = req.params;
+  const data = req.body;
+
+  if (!id) {
+    return res.status(400).json({ message: "id is required" });
+  }
+
+  let setClause;
+  let values;
+
+  try {
+    // Handle file upload if present
+    if (req.file) {
+      data.profile_photo = `/images/${req.file.filename}`;
+    }
+
+    // First get the existing record to check for subscription changes and merge data
+    const [existing] = await db.execute(
+      `SELECT * FROM employer WHERE id = ?`,
+      [id]
+    );
+
+    if (existing.length === 0) {
+      return res.status(404).json({ message: "No record found to update" });
+    }
+
+    const previousPlanName = existing[0].plan_name;
+    const previousPlanEndDate = existing[0].plan_enddate;
+
+    // Merge existing data with new data to calculate percentage accurately
+    const mergedData = { ...existing[0], ...data };
+    
+    // Calculate columns percentage with merged data
+    const percentage = await calculateColumnsPercentage(mergedData);
+    data.columns_percentage = percentage;
+
+    // Filter out id from update fields
+    const updateFields = Object.keys(data)
+      .filter(key => key !== "id");
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({ message: "No fields to update" });
+    }
+
+    // Build the SET clause and prepare values
+    setClause = updateFields.map(key => `${key} = ?`).join(", ");
+    
+    // Convert array values to JSON strings
+    values = updateFields.map(key => {
+      const value = data[key];
+      return Array.isArray(value) ? JSON.stringify(value) : value;
+    });
+    
+    values.push(id);
+
+    const [result] = await db.execute(
+      `UPDATE employer SET ${setClause} WHERE id = ?`,
+      values
+    );
+
+    if (result.affectedRows > 0) {
+      // Check if subscription was renewed
+      if (data.plan_name && data.plan_enddate && 
+          (data.plan_name !== previousPlanName || data.plan_enddate !== previousPlanEndDate)) {
+        await emailService.sendSubscriptionRenewalConfirmation(
+          data.email_id || existing[0].email_id,
+          data.name || existing[0].name,
+          data.plan_name,
+          data.plan_enddate
+        );
+        console.log(`Sent renewal confirmation to ${data.email_id || existing[0].email_id}`);
+      }
+
+      res.json({ 
+        message: "Updated successfully", 
+        columns_percentage: percentage 
+      });
+    } else {
+      res.status(404).json({ message: "No record found to update" });
+    }
+  } catch (err) {
+    console.error('Database error:', {
+      error: err,
+      constructedQuery: `UPDATE employer SET ${setClause} WHERE id = ?`,
+      values: values,
+      dataReceived: data
+    });
+    
+    res.status(500).json({ 
+      message: "Database error", 
+      error: err.message
+    });
   }
 });
 
