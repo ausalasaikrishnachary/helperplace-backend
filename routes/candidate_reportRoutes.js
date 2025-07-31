@@ -28,13 +28,13 @@ router.get('/:id', async (req, res) => {
 
 // Create a new candidate report
 router.post('/', async (req, res) => {
-  const { emp_id, first_name, candidate_id, email, reason, description } = req.body;
+  const { emp_id, first_name, candidate_id, candidate_name, email, reason, description } = req.body;
   try {
     const query = `
-      INSERT INTO candidate_report (emp_id, first_name, candidate_id, email, reason, description)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO candidate_report (emp_id, first_name, candidate_id, candidate_name, email, reason, description)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
-    const [result] = await db.query(query, [emp_id, first_name, candidate_id, email, reason, description]);
+    const [result] = await db.query(query, [emp_id, first_name, candidate_id, candidate_name, email, reason, description]);
 
     res.status(201).json({
       message: 'Candidate report created',
@@ -42,6 +42,7 @@ router.post('/', async (req, res) => {
       emp_id,
       first_name,
       candidate_id,
+      candidate_name,
       email,
       reason,
       description
@@ -54,14 +55,14 @@ router.post('/', async (req, res) => {
 // Update an existing candidate report
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { emp_id, first_name, candidate_id, email, reason, description } = req.body;
+  const { emp_id, first_name, candidate_id, candidate_name, email, reason, description } = req.body;
   try {
     const query = `
       UPDATE candidate_report 
-      SET emp_id = ?, first_name = ?, candidate_id = ?, email = ?, reason = ?, description = ?
+      SET emp_id = ?, first_name = ?, candidate_id = ?, candidate_name = ?, email = ?, reason = ?, description = ?
       WHERE id = ?
     `;
-    await db.query(query, [emp_id, first_name, candidate_id, email, reason, description, id]);
+    await db.query(query, [emp_id, first_name, candidate_id, candidate_name, email, reason, description, id]);
 
     res.json({ message: 'Candidate report updated successfully' });
   } catch (err) {
