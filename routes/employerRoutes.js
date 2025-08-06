@@ -279,7 +279,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // GET - Latest temporary_id
-router.get("/latest-temporary-id", async (req, res) => {
+router.get("/get/latest-temporary-id", async (req, res) => {
   try {
     const [rows] = await db.execute(
       `SELECT temporary_id FROM employer ORDER BY id DESC LIMIT 1`

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db'); // db is a mysql2/promise pool
 const { sendProfileVerifiedEmail } = require('./emailService');
-const {sendSubscriptionPlanChangeEmail} = require('./emailService');
+const {sendSubscriptionPlanChangeEmail, sendPlanUpgradeEmailToJobSeeker } = require('./emailService');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -386,6 +386,105 @@ router.put('/job-seeker/subscription/:id', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// New endpoint to check and send plan upgrade emails
+// Updated check-plan-upgrades endpoint
+router.get('/job-seeker/check-plan-upgrades', async (req, res) => {
+  console.log('Plan upgrade check endpoint hit');
+  
+  try {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    
+    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    console.log('Checking for plans ending on:', tomorrowStr);
+
+    // Find job seekers with plans ending tomorrow
+    const [jobSeekers] = await db.query(
+      `SELECT user_id, first_name, email_id, agency_mail, plan_enddate, subscription_plan, whatsapp_number 
+       FROM job_seekers 
+       WHERE plan_enddate = ? AND subscription_plan IS NOT NULL`,
+      [tomorrowStr]
+    );
+
+    console.log(`Found ${jobSeekers.length} job seekers with plans ending tomorrow`);
+    
+    let upgradeEmailsSent = 0;
+    let whatsappRemindersSent = 0;
+    const errors = [];
+    
+    // Process each job seeker
+    for (const jobSeeker of jobSeekers) {
+      try {
+        console.log(`Processing job seeker ${jobSeeker.user_id} with plan ${jobSeeker.subscription_plan}`);
+        
+        // First check if WhatsApp number is missing
+        if (!jobSeeker.whatsapp_number) {
+          console.log(`Job seeker ${jobSeeker.user_id} is missing WhatsApp number`);
+          await sendWhatsappNumberReminder(
+            jobSeeker.email_id,
+            jobSeeker.first_name
+          );
+          whatsappRemindersSent++;
+          console.log(`Sent WhatsApp number reminder to ${jobSeeker.email_id}`);
+        }
+
+        // Then proceed with plan upgrade check
+        let nextPlan;
+        switch(jobSeeker.subscription_plan.toLowerCase()) {
+          case '30 days plan':
+            nextPlan = '60 days plan';
+            break;
+          case '60 days plan':
+            nextPlan = '90 days plan';
+            break;
+          default:
+            nextPlan = null;
+        }
+
+        if (nextPlan) {
+          console.log(`Suggesting upgrade from ${jobSeeker.subscription_plan} to ${nextPlan}`);
+          
+          await sendPlanUpgradeEmailToJobSeeker(
+            jobSeeker.agency_mail,
+            jobSeeker.first_name,
+            jobSeeker.subscription_plan,
+            nextPlan,
+            jobSeeker.plan_enddate
+          );
+          upgradeEmailsSent++;
+          console.log(`Sent upgrade email to ${jobSeeker.agency_mail}`);
+        } else {
+          console.log(`No upgrade available for plan ${jobSeeker.subscription_plan}`);
+        }
+      } catch (emailErr) {
+        console.error(`Failed to process job seeker ${jobSeeker.user_id}:`, emailErr);
+        errors.push({
+          userId: jobSeeker.user_id,
+          error: emailErr.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Plan upgrade check completed',
+      dateChecked: tomorrowStr,
+      jobSeekersChecked: jobSeekers.length,
+      upgradeEmailsSent,
+      whatsappRemindersSent,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (err) {
+    console.error('Error in plan upgrade check:', err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message,
+      message: 'Failed to check plan upgrades'
+    });
+  }
 });
 
 module.exports = router;

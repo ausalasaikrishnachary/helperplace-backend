@@ -2,6 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const { transporter, ADMIN_EMAIL } = require('./nodemailer');
 
+function getNextUpgradePlan(currentPlan) {
+    const planHierarchy = {
+        '30 days plan': '60 days plan',
+        '60 days plan': '90 days plan',
+        '90 days plan': null // No further upgrade
+    };
+
+    return planHierarchy[currentPlan] || null;
+}
+
 // 1️⃣ Thanks for joining email
 const sendThanksEmail = async (to, firstName) => {
     const mailOptions = {
@@ -264,6 +274,41 @@ const sendIncompleteProfileReminder = async (to, firstName, completionPercentage
     return transporter.sendMail(mailOptions);
 };
 
+const sendPlanUpgradeEmailToJobSeeker = async (to, firstName, currentPlan, endDate) => {
+    const nextPlan = getNextUpgradePlan(currentPlan);
+    if (!nextPlan) return; // No upgrade available
+
+    const formattedDate = new Date(endDate).toLocaleDateString();
+
+    const mailOptions = {
+        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: `Upgrade to ${nextPlan} - Get More Benefits!`,
+        html: `
+      <p>Hi ${firstName},</p>
+      <p>Your current <strong>${currentPlan}</strong> subscription is expiring tomorrow (on ${formattedDate}).</p>
+      <p>We recommend upgrading to our <strong>${nextPlan}</strong> to enjoy these benefits:</p>
+      <ul>
+        <li>Extended visibility to employers</li>
+        <li>Priority in search results</li>
+        <li>More job application opportunities</li>
+        <li>Longer subscription period</li>
+      </ul>
+      <p>Upgrade now to continue your job search without interruption!</p>
+      <p>Best Regards,<br/>Gudnet Team</p>
+    `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Upgrade email sent to ${to}`);
+        return true;
+    } catch (error) {
+        console.error(`Error sending upgrade email to ${to}:`, error);
+        return false;
+    }
+};
+
 // Combine both onboarding emails
 const sendOnboardingEmails = async (to, firstName, lastName, role) => {
     await sendThanksEmail(to, firstName);
@@ -321,6 +366,27 @@ const checkAndSendSubscriptionReminders = async (db) => {
         const oneWeekLaterStr = oneWeekLater.toISOString().split('T')[0];
         const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
+        // Find job seekers with plans ending tomorrow who came through Agency
+        const [jobSeekersPlansEnding] = await db.execute(
+            `SELECT user_id, first_name, agency_mail, plan_enddate, subscription_plan 
+     FROM job_seekers 
+     WHERE plan_enddate = ? 
+     AND subscription_plan IS NOT NULL
+     AND LOWER(source) = 'agency'`,
+            [tomorrowStr]
+        );
+
+        // Send plan upgrade suggestions to job seekers
+        for (const jobSeeker of jobSeekersPlansEnding) {
+            await sendPlanUpgradeEmailToJobSeeker(
+                jobSeeker.agency_mail,
+                jobSeeker.first_name,
+                jobSeeker.subscription_plan,
+                jobSeeker.plan_enddate
+            );
+            console.log(`Sent plan upgrade suggestion to job seeker ${jobSeeker.agency_mail}`);
+        }
+
         // Find incomplete profiles (columns_percentage < 100)
         const [incompleteProfiles] = await db.execute(
             `SELECT id, name, email_id, columns_percentage 
@@ -338,7 +404,7 @@ const checkAndSendSubscriptionReminders = async (db) => {
             console.log(`Sent incomplete profile reminder to ${employer.email_id}`);
         }
 
-        // Find incomplete profiles (columns_percentage < 100)
+        // Find incomplete profiles for job seekers
         const [incompleteProfile] = await db.execute(
             `SELECT user_id, first_name, email_id, columns_percentage 
              FROM job_seekers 
@@ -346,13 +412,25 @@ const checkAndSendSubscriptionReminders = async (db) => {
         );
 
         // Send reminders for incomplete profiles
-        for (const job_seeker of incompleteProfile) {
-            await sendIncompleteProfileReminder(
-                job_seeker.email_id,
-                job_seeker.name,
-                job_seeker.columns_percentage
-            );
-            console.log(`Sent incomplete profile reminder to ${job_seeker.email_id}`);
+         for (const job_seeker of incompleteProfile) {
+            // Send incomplete profile reminder if percentage is low
+            if (job_seeker.columns_percentage < 100) {
+                await sendIncompleteProfileReminder(
+                    job_seeker.email_id,
+                    job_seeker.first_name,
+                    job_seeker.columns_percentage
+                );
+                console.log(`Sent incomplete profile reminder to ${job_seeker.email_id}`);
+            }
+            
+            // Send WhatsApp number reminder if missing
+            if (!job_seeker.whatsapp_number) {
+                await sendWhatsappNumberReminder(
+                    job_seeker.email_id,
+                    job_seeker.first_name
+                );
+                console.log(`Sent WhatsApp number reminder to ${job_seeker.email_id}`);
+            }
         }
 
         // Find subscriptions expiring in exactly 7 days
@@ -405,10 +483,6 @@ const checkAndSendSubscriptionReminders = async (db) => {
                 employer.name
             );
 
-            console.log(`Sent expiry notifications to ${employer.email_id}`);
-        }
-
-        for (const employer of expiringToday) {
             // Send job postings expired notification
             await sendJobpostingexpiredNotification(
                 employer.email_id,
@@ -453,7 +527,8 @@ const checkAndSendSubscriptionReminders = async (db) => {
             expiringTodayCount: expiringToday.length,
             freeTrialsEndingCount: freeTrialsEnding.length,
             upgradeSuggestionsSent: plansEndingTomorrow.length - freeTrialsEnding.length,
-            lowViewRemindersSent: lowViewsResult.lowViewRemindersSent
+            lowViewRemindersSent: lowViewsResult.lowViewRemindersSent,
+            jobSeekerUpgradeSuggestionsSent: jobSeekersPlansEnding.length
         };
     } catch (err) {
         console.error('Error in subscription reminders:', err);
@@ -492,7 +567,6 @@ const sendProfileVerifiedEmail = async (to, firstName) => {
     return transporter.sendMail(mailOptions);
 };
 
-// Add this new function to your email services
 const sendSubscriptionPlanChangeEmail = async (to, firstName, oldPlan, newPlan, endDate) => {
     const formattedDate = new Date(endDate).toLocaleDateString();
     const mailOptions = {
@@ -505,6 +579,23 @@ const sendSubscriptionPlanChangeEmail = async (to, firstName, oldPlan, newPlan, 
       <p>Your new subscription end date is ${formattedDate}.</p>
       <p>Thank you for choosing a higher plan with us.</p>
       <p>Warm regards,<br/>Gudnet Team</p>
+    `
+    };
+    return transporter.sendMail(mailOptions);
+};
+
+// Add this to your emailService.js
+const sendWhatsappNumberReminder = async (to, firstName) => {
+    const mailOptions = {
+        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: 'Please Update Your WhatsApp Number',
+        html: `
+      <p>Hi ${firstName},</p>
+      <p>We noticed that you haven't provided your WhatsApp number in your Gudnet profile.</p>
+      <p>Adding your WhatsApp number will help us send you important updates and notifications directly.</p>
+      <p>Please log in to your account and update your profile with your WhatsApp number at your earliest convenience.</p>
+      <p>Best regards,<br/>Gudnet Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -528,5 +619,7 @@ module.exports = {
     sendProfileRejectedEmail,
     sendProfileVerifiedEmail,
     sendIncompleteProfileReminder,
-    sendSubscriptionPlanChangeEmail
+    sendSubscriptionPlanChangeEmail,
+    sendPlanUpgradeEmailToJobSeeker,
+    sendWhatsappNumberReminder
 };

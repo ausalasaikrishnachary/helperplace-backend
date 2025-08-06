@@ -114,6 +114,7 @@ router.post('/', async (req, res) => {
   const {
     email, mobile_number, password, first_name, last_name,
     role, source, location, language_preference, agency_uid,
+    agency_mail, // Added agency_mail from payload
     otp // OTP from client
   } = req.body;
 
@@ -134,13 +135,13 @@ router.post('/', async (req, res) => {
     const query = `
       INSERT INTO users (
         email, mobile_number, password, first_name, last_name, 
-        role, source, location, language_preference, agency_uid, is_verified
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        role, source, location, language_preference, agency_uid, agency_mail, is_verified
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const [result] = await db.query(query, [
       email, mobile_number, password, first_name, last_name,
-      role, source, location, language_preference, agency_uid,
+      role, source, location, language_preference, agency_uid, agency_mail,
       1 // is_verified set to true since we verified with OTP
     ]);
 
@@ -161,6 +162,7 @@ router.post('/', async (req, res) => {
       location,
       language_preference,
       agency_uid,
+      agency_mail, // Include agency_mail in the response
       is_verified: true
     });
 
