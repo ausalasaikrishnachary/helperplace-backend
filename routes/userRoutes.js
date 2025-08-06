@@ -306,4 +306,107 @@ router.post('/api/send-rejection-email', async (req, res) => {
   }
 });
 
+// Google authentication endpoint
+router.post('/google-auth', async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ message: 'Token is required' });
+  }
+
+  try {
+    // Verify the Google token
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, given_name: firstName, family_name: lastName } = payload;
+
+    // Check if user exists in either users or agency_user table
+    const [userResults] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+    const [agencyResults] = await db.query('SELECT * FROM agency_user WHERE email = ?', [email]);
+
+    if (userResults.length > 0) {
+      const user = userResults[0];
+      
+      // Update login activity for the user
+      await db.query(
+        'UPDATE users SET last_login_date = NOW() WHERE id = ?',
+        [user.id]
+      );
+      
+      return res.json({
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          mobile_number: user.mobile_number,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          role: user.role,
+          is_verified: user.is_verified,
+          created_at: user.created_at,
+          user_type: 'general' 
+        }
+      });
+    } else if (agencyResults.length > 0) {
+      const agencyUser = agencyResults[0];
+      
+      // Update login activity for agency user
+      await db.query(
+        'UPDATE agency_user SET last_login_date = NOW() WHERE id = ?',
+        [agencyUser.id]
+      );
+      
+      return res.json({
+        message: 'Login successful',
+        user: {
+          id: agencyUser.id,
+          email: agencyUser.email,
+          mobile_number: agencyUser.mobile_number,
+          first_name: agencyUser.first_name,
+          last_name: agencyUser.last_name,
+          role: agencyUser.role,
+          is_verified: agencyUser.is_verified,
+          created_at: agencyUser.created_at,
+          user_type: 'agency'
+        }
+      });
+    } else {
+      // User doesn't exist - create new account
+      const query = `
+        INSERT INTO users (
+          email, first_name, last_name, 
+          role, is_verified, source
+        ) VALUES (?, ?, ?, 'job seeker', 1, 'google')
+      `;
+      
+      const [result] = await db.query(query, [
+        email, firstName, lastName
+      ]);
+
+      // Send welcome email
+      await sendOnboardingEmails(email, firstName, lastName, 'job seeker');
+
+      return res.status(201).json({
+        message: 'Account created and logged in successfully',
+        user: {
+          id: result.insertId,
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          role: 'job seeker',
+          is_verified: true,
+          user_type: 'general'
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Google authentication error:', err);
+    res.status(500).json({ error: err.message || 'Google authentication failed' });
+  }
+});
+
 module.exports = router;

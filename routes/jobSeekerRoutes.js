@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db'); // db is a mysql2/promise pool
-
+const { sendProfileVerifiedEmail } = require('./emailService');
+const {sendSubscriptionPlanChangeEmail} = require('./emailService');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -65,6 +66,37 @@ function stringifyJsonFields(data) {
   return data;
 }
 
+// Function to calculate filled columns percentage for job_seekers
+async function calculateColumnsPercentage(data) {
+  try {
+    // Get all columns from the job_seekers table except columns_percentage and auto-increment fields
+    const [columnsInfo] = await db.query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_NAME = 'job_seekers' 
+      AND COLUMN_NAME NOT IN ('columns_percentage', 'id', 'created_at', 'updated_at')
+    `);
+    
+    const totalColumns = columnsInfo.length;
+    let filledColumns = 0;
+
+    // Count how many columns are filled in the data
+    for (const column of columnsInfo) {
+      const columnName = column.COLUMN_NAME;
+      if (data[columnName] !== undefined && data[columnName] !== null && data[columnName] !== '') {
+        filledColumns++;
+      }
+    }
+
+    // Calculate percentage
+    const percentage = Math.round((filledColumns / totalColumns) * 100);
+    return percentage;
+  } catch (err) {
+    console.error('Error calculating columns percentage:', err);
+    return 0;
+  }
+}
+
 // ✅ POST: Create or update job seeker
 router.post('/job-seeker', upload.fields([
   { name: 'profile_photo', maxCount: 1 },
@@ -88,11 +120,18 @@ router.post('/job-seeker', upload.fields([
       data.video_upload_date = new Date();
     }
 
+    // Calculate columns percentage with the new data
+    const percentage = await calculateColumnsPercentage(data);
+    data.columns_percentage = percentage;
+
     const [rows] = await db.query('SELECT * FROM job_seekers WHERE user_id = ?', [userId]);
 
     if (rows.length === 0) {
       await db.query('INSERT INTO job_seekers SET ?', [data]);
-      res.status(201).json({ message: 'New job seeker inserted' });
+      res.status(201).json({ 
+        message: 'New job seeker inserted',
+        columns_percentage: percentage 
+      });
     } else {
       const updateFields = Object.keys(data)
         .filter(key => key !== 'user_id')
@@ -105,7 +144,10 @@ router.post('/job-seeker', upload.fields([
 
       const updateSql = `UPDATE job_seekers SET ${updateFields} WHERE user_id = ?`;
       await db.query(updateSql, [...updateValues, userId]);
-      res.status(200).json({ message: 'Job seeker updated' });
+      res.status(200).json({ 
+        message: 'Job seeker updated',
+        columns_percentage: percentage 
+      });
     }
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -157,8 +199,16 @@ router.put('/job-seeker/:id', async (req, res) => {
   try {
     const userId = req.params.id;
     const data = stringifyJsonFields(req.body);
+    
+    // Calculate columns percentage with the new data
+    const percentage = await calculateColumnsPercentage(data);
+    data.columns_percentage = percentage;
+    
     await db.query('UPDATE job_seekers SET ? WHERE user_id = ?', [data, userId]);
-    res.json({ message: 'Job seeker updated' });
+    res.json({ 
+      message: 'Job seeker updated',
+      columns_percentage: percentage 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -179,26 +229,163 @@ router.delete('/job-seeker/:id', async (req, res) => {
 router.delete('/job-seeker/:id/photo', async (req, res) => {
   try {
     const userId = req.params.id;
-    
+
     // First get the current profile photo path
     const [results] = await db.query('SELECT profile_photo FROM job_seekers WHERE user_id = ?', [userId]);
-    
+
     if (results.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     const profilePhotoPath = results[0].profile_photo;
-    
+
     // Update the database to remove the profile photo
     await db.query('UPDATE job_seekers SET profile_photo = NULL WHERE user_id = ?', [userId]);
-    
-    res.json({ 
+
+    // Recalculate columns percentage after removing photo
+    const [userData] = await db.query('SELECT * FROM job_seekers WHERE user_id = ?', [userId]);
+    if (userData.length > 0) {
+      const percentage = await calculateColumnsPercentage(userData[0]);
+      await db.query('UPDATE job_seekers SET columns_percentage = ? WHERE user_id = ?', [percentage, userId]);
+    }
+
+    res.json({
       message: 'Profile photo deleted',
-      deletedPhotoPath: profilePhotoPath 
+      deletedPhotoPath: profilePhotoPath
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// GET columns percentage for a specific job seeker
+router.get('/job-seeker/columns-percentage/:id', async (req, res) => {
+  const userId = req.params.id;
+
+  if (!userId) {
+    return res.status(400).json({ message: "user_id is required" });
+  }
+
+  try {
+    const [rows] = await db.query(
+      `SELECT columns_percentage, email_id, first_name FROM job_seekers WHERE user_id = ?`,
+      [userId]
+    );
+
+    if (rows.length > 0) {
+      const jobSeeker = rows[0];
+      
+      // Check if profile is incomplete (less than 100%)
+      if (jobSeeker.columns_percentage < 100) {
+        try {
+          // You would need to implement sendIncompleteProfileReminder similar to the reference code
+          await sendIncompleteProfileReminder(
+            jobSeeker.email_id,
+            jobSeeker.first_name,
+            jobSeeker.columns_percentage
+          );
+        } catch (emailErr) {
+          console.error('Error sending incomplete profile reminder:', emailErr);
+          // Continue with the response even if email fails
+        }
+      }
+      
+      res.json({ columns_percentage: jobSeeker.columns_percentage });
+    } else {
+      res.status(404).json({ message: "No data found for the given user_id" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+
+router.put('/job-seeker/status/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const data = stringifyJsonFields(req.body);
+
+    // Get the current verification status before updating
+    const [currentData] = await db.query(
+      'SELECT verification_status, email_id, first_name FROM job_seekers WHERE user_id = ?',
+      [userId]
+    );
+
+    // Calculate columns percentage with the new data
+    const [userData] = await db.query('SELECT * FROM job_seekers WHERE user_id = ?', [userId]);
+    if (userData.length > 0) {
+      const mergedData = { ...userData[0], ...data };
+      const percentage = await calculateColumnsPercentage(mergedData);
+      data.columns_percentage = percentage;
+    }
+
+    await db.query('UPDATE job_seekers SET ? WHERE user_id = ?', [data, userId]);
+
+    // Check if verification status was changed to "Verified"
+    if (data.verification_status === 'Verified' &&
+      currentData[0]?.verification_status !== 'Verified' &&
+      currentData[0]?.email_id) {
+      try {
+        await sendProfileVerifiedEmail(
+          currentData[0].email_id,
+          currentData[0].first_name
+        );
+      } catch (emailErr) {
+        console.error('Error sending verification email:', emailErr);
+        // Don't fail the request if email fails
+      }
+    }
+
+    res.json({ message: 'Job seeker updated' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ PUT: Update by ID
+router.put('/job-seeker/subscription/:id', async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const data = stringifyJsonFields(req.body);
+        
+        // Get current subscription data before updating
+        const [currentData] = await db.query(
+            'SELECT subscription_plan, email_id, first_name FROM job_seekers WHERE user_id = ?', 
+            [userId]
+        );
+
+        // Calculate columns percentage with the new data
+        const percentage = await calculateColumnsPercentage(data);
+        data.columns_percentage = percentage;
+        
+        await db.query('UPDATE job_seekers SET ? WHERE user_id = ?', [data, userId]);
+
+        // Check if subscription plan was changed
+        if (currentData.length > 0 && 
+            data.subscription_plan && 
+            data.subscription_plan !== currentData[0].subscription_plan &&
+            currentData[0].email_id) {
+            try {
+                await sendSubscriptionPlanChangeEmail(
+                    currentData[0].email_id,
+                    currentData[0].first_name,
+                    currentData[0].subscription_plan,
+                    data.subscription_plan,
+                    data.plan_enddate
+                );
+            } catch (emailErr) {
+                console.error('Error sending plan change email:', emailErr);
+                // Don't fail the request if email fails
+            }
+        }
+
+        res.json({ 
+            message: 'Job seeker updated',
+            columns_percentage: percentage 
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 module.exports = router;

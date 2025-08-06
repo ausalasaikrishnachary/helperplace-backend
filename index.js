@@ -30,6 +30,7 @@ const candidate_reportRoutes = require('./routes/candidate_reportRoutes');
 const forgotpassword = require('./routes/forgotpassword');
 const Jobpositionroutes = require('./routes/Jobpositionroutes');
 const Subscriptionplanroutes = require('./routes/Subscriptionplanroutes');
+const AgencySubscriptionplansRoutes = require('./routes/AgencySubscriptionplansRoutes');
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
@@ -40,12 +41,13 @@ app.use("/api/jobreport", job_reportRoutes);
 app.use("/api/candidatereport", candidate_reportRoutes);
 app.use("/api/jobposition", Jobpositionroutes);
 app.use("/api/subscriptionplans", Subscriptionplanroutes);
+app.use("/api/agencysubscriptionplans", AgencySubscriptionplansRoutes);
 app.use('/', forgotpassword);
 require('./routes/inactivityChecker');
 
 // Schedule daily subscription reminder at 1:30 PM IST (08:00 AM UTC)
 // ✅ Schedule daily subscription reminder at 1:30 PM IST
-cron.schedule('47 20 * * *', async () => {
+cron.schedule('56 17 * * *', async () => {
   console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
   try {
     const result = await emailService.checkAndSendSubscriptionReminders(db);

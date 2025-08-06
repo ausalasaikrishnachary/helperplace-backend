@@ -158,7 +158,7 @@ const sendSubscriptionRenewalConfirmation = async (to, firstName, planName, endD
 // 9️⃣ Plan Upgrade Suggestion (1 day before expiry)
 const sendPlanUpgradeSuggestion = async (to, firstName, currentPlan, endDate) => {
     const formattedDate = new Date(endDate).toLocaleDateString('en-IN');
-    
+
     let suggestedPlan = '';
     let benefits = [];
 
@@ -243,6 +243,27 @@ const sendProfileRejectedEmail = async (to, firstName) => {
     return transporter.sendMail(mailOptions);
 };
 
+const sendIncompleteProfileReminder = async (to, firstName, completionPercentage) => {
+    const mailOptions = {
+        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: 'Complete Your Profile to Get More Visibility',
+        html: `
+      <p>Hi ${firstName},</p>
+      <p>We noticed your profile is only ${completionPercentage}% complete!</p>
+      <p>Complete your profile to:</p>
+      <ul>
+        <li>Increase your visibility to potential candidates</li>
+        <li>Get better matches for your job requirements</li>
+        <li>Access all platform features</li>
+      </ul>
+      <p>Log in now to complete the remaining sections and get the most out of Gudnet.</p>
+      <p>Best regards,<br/>Gudnet Team</p>
+    `
+    };
+    return transporter.sendMail(mailOptions);
+};
+
 // Combine both onboarding emails
 const sendOnboardingEmails = async (to, firstName, lastName, role) => {
     await sendThanksEmail(to, firstName);
@@ -269,7 +290,7 @@ const checkAndSendLowViewsReminders = async (db) => {
                 employer.view_count
             );
             console.log(`Sent low views reminder to ${employer.email_id}`);
-            
+
             // Mark as notified
             // await db.execute(
             //     `UPDATE employer SET low_views_notified = 1 WHERE id = ?`,
@@ -300,6 +321,40 @@ const checkAndSendSubscriptionReminders = async (db) => {
         const oneWeekLaterStr = oneWeekLater.toISOString().split('T')[0];
         const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
+        // Find incomplete profiles (columns_percentage < 100)
+        const [incompleteProfiles] = await db.execute(
+            `SELECT id, name, email_id, columns_percentage 
+             FROM employer 
+             WHERE columns_percentage < 100`
+        );
+
+        // Send reminders for incomplete profiles
+        for (const employer of incompleteProfiles) {
+            await sendIncompleteProfileReminder(
+                employer.email_id,
+                employer.name,
+                employer.columns_percentage
+            );
+            console.log(`Sent incomplete profile reminder to ${employer.email_id}`);
+        }
+
+        // Find incomplete profiles (columns_percentage < 100)
+        const [incompleteProfile] = await db.execute(
+            `SELECT user_id, first_name, email_id, columns_percentage 
+             FROM job_seekers 
+             WHERE columns_percentage < 100`
+        );
+
+        // Send reminders for incomplete profiles
+        for (const job_seeker of incompleteProfile) {
+            await sendIncompleteProfileReminder(
+                job_seeker.email_id,
+                job_seeker.name,
+                job_seeker.columns_percentage
+            );
+            console.log(`Sent incomplete profile reminder to ${job_seeker.email_id}`);
+        }
+
         // Find subscriptions expiring in exactly 7 days
         const [expiringSoon] = await db.execute(
             `SELECT e.user_id, e.name, e.email_id, e.plan_enddate, e.plan_name 
@@ -323,7 +378,7 @@ const checkAndSendSubscriptionReminders = async (db) => {
              WHERE e.plan_enddate = ? AND e.plan_name = 'free posting'`,
             [tomorrowStr]
         );
-        
+
         // Find all plans ending tomorrow (for upgrade suggestions)
         const [plansEndingTomorrow] = await db.execute(
             `SELECT e.user_id, e.name, e.email_id, e.plan_enddate, e.plan_name 
@@ -349,17 +404,17 @@ const checkAndSendSubscriptionReminders = async (db) => {
                 employer.email_id,
                 employer.name
             );
-            
+
             console.log(`Sent expiry notifications to ${employer.email_id}`);
         }
 
-          for (const employer of expiringToday) {
+        for (const employer of expiringToday) {
             // Send job postings expired notification
             await sendJobpostingexpiredNotification(
                 employer.email_id,
                 employer.name
             );
-            
+
             console.log(`Sent expiry notifications to ${employer.email_id}`);
         }
 
@@ -372,7 +427,7 @@ const checkAndSendSubscriptionReminders = async (db) => {
             );
             console.log(`Sent free trial ending reminder to ${employer.email_id}`);
         }
-        
+
         // Send plan upgrade suggestions
         for (const employer of plansEndingTomorrow) {
             const plan = employer.plan_name.toLowerCase();
@@ -392,6 +447,8 @@ const checkAndSendSubscriptionReminders = async (db) => {
         const lowViewsResult = await checkAndSendLowViewsReminders(db);
 
         return {
+            incompleteProfileRemindersSent: incompleteProfiles.length,
+            incompleteProfileReminderSent: incompleteProfile.length,
             expiringSoonCount: expiringSoon.length,
             expiringTodayCount: expiringToday.length,
             freeTrialsEndingCount: freeTrialsEnding.length,
@@ -419,6 +476,40 @@ const sendInactivityNotification = async (to, firstName, daysInactive) => {
     return transporter.sendMail(mailOptions);
 };
 
+const sendProfileVerifiedEmail = async (to, firstName) => {
+    const mailOptions = {
+        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: 'Your Profile Has Been Verified!',
+        html: `
+      <p>Hi ${firstName},</p>
+      <p>We're pleased to inform you that your profile on Gudnet has been verified by our team!</p>
+      <p>This verification badge will make your profile more visible to employers and increase your chances of getting hired.</p>
+      <p>Log in to your account to see your verified status and explore new job opportunities.</p>
+      <p>Best regards,<br/>Gudnet Team</p>
+    `
+    };
+    return transporter.sendMail(mailOptions);
+};
+
+// Add this new function to your email services
+const sendSubscriptionPlanChangeEmail = async (to, firstName, oldPlan, newPlan, endDate) => {
+    const formattedDate = new Date(endDate).toLocaleDateString();
+    const mailOptions = {
+        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: 'Subscription Plan Change Confirmation',
+        html: `
+      <p>Hi ${firstName},</p>
+      <p>Your Gudnet subscription has been successfully changed from <strong>${oldPlan}</strong> to <strong>${newPlan}</strong>!</p>
+      <p>Your new subscription end date is ${formattedDate}.</p>
+      <p>Thank you for choosing a higher plan with us.</p>
+      <p>Warm regards,<br/>Gudnet Team</p>
+    `
+    };
+    return transporter.sendMail(mailOptions);
+};
+
 module.exports = {
     sendThanksEmail,
     sendWelcomeEmail,
@@ -434,5 +525,8 @@ module.exports = {
     checkAndSendSubscriptionReminders,
     checkAndSendLowViewsReminders,
     sendInactivityNotification,
-    sendProfileRejectedEmail
+    sendProfileRejectedEmail,
+    sendProfileVerifiedEmail,
+    sendIncompleteProfileReminder,
+    sendSubscriptionPlanChangeEmail
 };

@@ -450,23 +450,39 @@ router.delete("/", async (req, res) => {
 });
 
 // New endpoint to get columns percentage for a specific employer
-router.get("/columns-percentage", async (req, res) => {
-  const { temporary_id, user_id } = req.query;
+router.get("/columns-percentage/:id", async (req, res) => {
+  const { id } = req.params;
 
-  if (!temporary_id || !user_id) {
-    return res.status(400).json({ message: "temporary_id and user_id are required" });
+  if (!id) {
+    return res.status(400).json({ message: "id is required" });
   }
 
   try {
     const [rows] = await db.execute(
-      `SELECT columns_percentage FROM employer WHERE temporary_id = ? AND user_id = ?`,
-      [temporary_id, user_id]
+      `SELECT columns_percentage, email_id, name FROM employer WHERE id = ?`,
+      [id]
     );
 
     if (rows.length > 0) {
-      res.json({ columns_percentage: rows[0].columns_percentage });
+      const employer = rows[0];
+      
+      // Check if profile is incomplete (less than 100%)
+      if (employer.columns_percentage < 100) {
+        try {
+          await sendIncompleteProfileReminder(
+            employer.email_id,
+            employer.name,
+            employer.columns_percentage
+          );
+        } catch (emailErr) {
+          console.error('Error sending incomplete profile reminder:', emailErr);
+          // Continue with the response even if email fails
+        }
+      }
+      
+      res.json({ columns_percentage: employer.columns_percentage });
     } else {
-      res.status(404).json({ message: "No data found" });
+      res.status(404).json({ message: "No data found for the given id" });
     }
   } catch (err) {
     console.error(err);
