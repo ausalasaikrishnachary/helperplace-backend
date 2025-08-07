@@ -2,8 +2,10 @@
 const nodemailer = require('nodemailer');
 
 // Admin email credentials
-const ADMIN_EMAIL = 'rajeshyanamadala2000@gmail.com';
-const ADMIN_APP_PASSWORD = 'thpr ipkp cubr hupw'; // Gmail App Password
+// const ADMIN_EMAIL = 'rajeshyanamadala2000@gmail.com';
+// const ADMIN_APP_PASSWORD = 'thpr ipkp cubr hupw'; 
+const ADMIN_EMAIL = 'iiiqbets01@gmail.com';
+const ADMIN_APP_PASSWORD = 'rava xoel gzai rkgx'; 
 
 // Nodemailer transporter
 const transporter = nodemailer.createTransport({

@@ -254,6 +254,12 @@ const sendProfileRejectedEmail = async (to, firstName) => {
 };
 
 const sendIncompleteProfileReminder = async (to, firstName, completionPercentage) => {
+    // Skip if no valid email address
+    if (!to || typeof to !== 'string' || !to.includes('@')) {
+        console.log(`Skipping incomplete profile reminder - invalid recipient: ${to}`);
+        return false;
+    }
+
     const mailOptions = {
         from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
         to,
@@ -275,6 +281,12 @@ const sendIncompleteProfileReminder = async (to, firstName, completionPercentage
 };
 
 const sendPlanUpgradeEmailToJobSeeker = async (to, firstName, currentPlan, endDate) => {
+    // Skip if no valid email address
+    if (!to || typeof to !== 'string' || !to.includes('@')) {
+        console.log(`Skipping upgrade email - invalid recipient: ${to}`);
+        return false;
+    }
+
     const nextPlan = getNextUpgradePlan(currentPlan);
     if (!nextPlan) return; // No upgrade available
 
@@ -372,7 +384,9 @@ const checkAndSendSubscriptionReminders = async (db) => {
      FROM job_seekers 
      WHERE plan_enddate = ? 
      AND subscription_plan IS NOT NULL
-     AND LOWER(source) = 'agency'`,
+     AND LOWER(source) = 'agency'
+     AND agency_mail IS NOT NULL
+     AND agency_mail LIKE '%@%'`, // Ensure it's a valid email format
             [tomorrowStr]
         );
 
@@ -405,28 +419,30 @@ const checkAndSendSubscriptionReminders = async (db) => {
         }
 
         // Find incomplete profiles for job seekers
+        // Find incomplete profiles for job seekers with valid emails
         const [incompleteProfile] = await db.execute(
-            `SELECT user_id, first_name, email_id, columns_percentage 
-             FROM job_seekers 
-             WHERE columns_percentage < 100`
+            `SELECT user_id, first_name, email_id, columns_percentage, whatsapp_number 
+     FROM job_seekers 
+     WHERE columns_percentage < 100
+     AND email_id IS NOT NULL
+     AND email_id LIKE '%@%'`
         );
 
-        // Send reminders for incomplete profiles
-         for (const job_seeker of incompleteProfile) {
+        for (const job_seeker of incompleteProfile) {
             // Send incomplete profile reminder if percentage is low
             if (job_seeker.columns_percentage < 100) {
                 await sendIncompleteProfileReminder(
-                    job_seeker.email_id,
+                    job_seeker.email_id, // Make sure this is the correct email field
                     job_seeker.first_name,
                     job_seeker.columns_percentage
                 );
                 console.log(`Sent incomplete profile reminder to ${job_seeker.email_id}`);
             }
-            
+
             // Send WhatsApp number reminder if missing
             if (!job_seeker.whatsapp_number) {
                 await sendWhatsappNumberReminder(
-                    job_seeker.email_id,
+                    job_seeker.email_id, // Make sure this is the correct email field
                     job_seeker.first_name
                 );
                 console.log(`Sent WhatsApp number reminder to ${job_seeker.email_id}`);
@@ -584,7 +600,6 @@ const sendSubscriptionPlanChangeEmail = async (to, firstName, oldPlan, newPlan, 
     return transporter.sendMail(mailOptions);
 };
 
-// Add this to your emailService.js
 const sendWhatsappNumberReminder = async (to, firstName) => {
     const mailOptions = {
         from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
@@ -599,6 +614,29 @@ const sendWhatsappNumberReminder = async (to, firstName) => {
     `
     };
     return transporter.sendMail(mailOptions);
+};
+
+// New function for sending custom emails
+const sendCustomEmail = async (to_email, subject, message) => {
+    if (!to_email || !subject || !message) {
+        throw new Error('Invalid request. Please provide to_email, subject, and message');
+    }
+
+    try {
+        const mailOptions = {
+            from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+            to: to_email,
+            subject: subject,
+            text: message,
+            html: `<p>${message}</p>`
+        };
+
+        await transporter.sendMail(mailOptions);
+        return { success: true, message: 'Email sent successfully!' };
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw new Error('Failed to send email. Please try again later.');
+    }
 };
 
 module.exports = {
@@ -621,5 +659,6 @@ module.exports = {
     sendIncompleteProfileReminder,
     sendSubscriptionPlanChangeEmail,
     sendPlanUpgradeEmailToJobSeeker,
-    sendWhatsappNumberReminder
+    sendWhatsappNumberReminder,
+    sendCustomEmail
 };

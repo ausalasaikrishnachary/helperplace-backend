@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db'); // db is a mysql2/promise pool
 const { sendProfileVerifiedEmail } = require('./emailService');
-const {sendSubscriptionPlanChangeEmail, sendPlanUpgradeEmailToJobSeeker } = require('./emailService');
+const {sendSubscriptionPlanChangeEmail, sendPlanUpgradeEmailToJobSeeker, sendWhatsappNumberReminder, sendCustomEmail } = require('./emailService');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -483,6 +483,37 @@ router.get('/job-seeker/check-plan-upgrades', async (req, res) => {
       success: false,
       error: err.message,
       message: 'Failed to check plan upgrades'
+    });
+  }
+});
+
+// ✅ POST: Send custom email
+router.post('/send-email', async (req, res) => {
+  try {
+    const { to_email, subject, message } = req.body;
+
+    // Validate required fields
+    if (!to_email || !subject || !message) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Missing required fields: to_email, subject, or message' 
+      });
+    }
+
+    // Send the email
+    const result = await sendCustomEmail(to_email, subject, message);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Email sent successfully',
+      data: result
+    });
+  } catch (err) {
+    console.error('Error sending email:', err);
+    res.status(500).json({ 
+      success: false,
+      message: err.message || 'Failed to send email',
+      error: err.message
     });
   }
 });
