@@ -1,8 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db'); // db is a mysql2/promise pool
+const db = require('../db'); // mysql2/promise pool
 const { sendProfileVerifiedEmail } = require('./emailService');
-const {sendSubscriptionPlanChangeEmail, sendPlanUpgradeEmailToJobSeeker, sendWhatsappNumberReminder, sendCustomEmail } = require('./emailService');
+const {
+  sendSubscriptionPlanChangeEmail,
+  sendPlanUpgradeEmailToJobSeeker,
+  sendWhatsappNumberReminder,
+  sendCustomEmail,
+  // sendIncompleteProfileReminder // add if you actually have it
+} = require('./emailService');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -12,15 +18,12 @@ const fs = require('fs');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir);
 });
 
+// -------- Multer --------
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    if (file.fieldname === 'profile_photo') {
-      cb(null, 'images');
-    } else if (file.fieldname === 'upload_video') {
-      cb(null, 'videos');
-    } else {
-      cb(new Error('Invalid field name'), null);
-    }
+    if (file.fieldname === 'profile_photo') cb(null, 'images');
+    else if (file.fieldname === 'upload_video') cb(null, 'videos');
+    else cb(new Error('Invalid field name'), null);
   },
   filename: (req, file, cb) => {
     const uniqueName = `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`;
@@ -33,17 +36,14 @@ const fileFilter = (req, file, cb) => {
   const videoTypes = /mp4|mov|avi/;
   const ext = path.extname(file.originalname).toLowerCase();
 
-  if (file.fieldname === 'profile_photo' && imageTypes.test(ext)) {
-    cb(null, true);
-  } else if (file.fieldname === 'upload_video' && videoTypes.test(ext)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only image and video files are allowed!'));
-  }
+  if (file.fieldname === 'profile_photo' && imageTypes.test(ext)) cb(null, true);
+  else if (file.fieldname === 'upload_video' && videoTypes.test(ext)) cb(null, true);
+  else cb(new Error('Only image and video files are allowed!'));
 };
 
 const upload = multer({ storage, fileFilter });
 
+// -------- JSON field helper --------
 const jsonFields = [
   'preffered_job_locations',
   'main_skills',
@@ -66,93 +66,161 @@ function stringifyJsonFields(data) {
   return data;
 }
 
-// Function to calculate filled columns percentage for job_seekers
+// -------- Date helpers (ISO -> MySQL) --------
+const pad2 = n => String(n).padStart(2, '0');
+
+// Use UTC for consistency. If you prefer local, replace getUTC* with get*.
+function toMySQLDateTime(value) {
+  const d = value instanceof Date ? value : new Date(value);
+  if (isNaN(d)) return null;
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`;
+}
+
+function toMySQLDate(value) {
+  const d = value instanceof Date ? value : new Date(value);
+  if (isNaN(d)) return null;
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+}
+
+const DATE_FIELDS = [
+  'preferred_start_date',
+  'visa_issued_date',
+  'visa_expiry_date',
+  'plan_startdate',
+  'plan_enddate',
+  'current_employment_date',
+  'current_finish_contract_date',
+  'previous_employment_date',
+  'previous_finish_contract_date',
+  'prometric_issue_date',
+  'prometric_expiry_date',
+  'dataflow_issue_date',
+  'dataflow_expiry_date',
+  'nursing_license_issue_date',
+  'nursing_license_expiry_date'
+];
+
+// Convert known DATE keys
+function normalizeDateFields(obj) {
+  for (const key of Object.keys(obj)) {
+    const val = obj[key];
+    if (val == null || val === '') continue;
+
+    if (DATE_FIELDS.includes(key)) {
+      const out = toMySQLDate(val);
+      if (out) obj[key] = out;
+    }
+  }
+  return obj;
+}
+
+// Convert ANY ISO 8601 ending with Z, regardless of key (belt + suspenders)
+const ISO_Z_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/i;
+function scrubAnyIsoDates(obj) {
+  for (const k of Object.keys(obj)) {
+    let v = obj[k];
+    if (Array.isArray(v)) v = v[0]; // multer/qs can wrap values in arrays
+    if (typeof v === 'string' && ISO_Z_RE.test(v)) {
+      obj[k] = toMySQLDateTime(v);
+    }
+  }
+  return obj;
+}
+
+// Never let client set created_at — DB has DEFAULT CURRENT_TIMESTAMP
+function stripClientTimestamps(obj) {
+  delete obj.created_at;
+}
+
+// -------- Columns percentage helper --------
 async function calculateColumnsPercentage(data) {
   try {
-    // Get all columns from the job_seekers table except columns_percentage and auto-increment fields
     const [columnsInfo] = await db.query(`
-      SELECT COLUMN_NAME 
-      FROM INFORMATION_SCHEMA.COLUMNS 
-      WHERE TABLE_NAME = 'job_seekers' 
-      AND COLUMN_NAME NOT IN ('columns_percentage', 'id', 'created_at', 'updated_at')
+      SELECT COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'job_seekers'
+        AND COLUMN_NAME NOT IN ('columns_percentage', 'id', 'created_at')
     `);
-    
-    const totalColumns = columnsInfo.length;
-    let filledColumns = 0;
 
-    // Count how many columns are filled in the data
-    for (const column of columnsInfo) {
-      const columnName = column.COLUMN_NAME;
-      if (data[columnName] !== undefined && data[columnName] !== null && data[columnName] !== '') {
-        filledColumns++;
+    const total = columnsInfo.length;
+    let filled = 0;
+
+    for (const c of columnsInfo) {
+      const name = c.COLUMN_NAME;
+      if (data[name] !== undefined && data[name] !== null && data[name] !== '') {
+        filled++;
       }
     }
 
-    // Calculate percentage
-    const percentage = Math.round((filledColumns / totalColumns) * 100);
-    return percentage;
+    return Math.round((filled / total) * 100);
   } catch (err) {
     console.error('Error calculating columns percentage:', err);
     return 0;
   }
 }
 
+// ===================== ROUTES =====================
+
 // ✅ POST: Create or update job seeker
-router.post('/job-seeker', upload.fields([
-  { name: 'profile_photo', maxCount: 1 },
-  { name: 'upload_video', maxCount: 1 }
-]), async (req, res) => {
-  try {
-    const data = stringifyJsonFields(req.body);
-    const userId = data.user_id;
+router.post(
+  '/job-seeker',
+  upload.fields([
+    { name: 'profile_photo', maxCount: 1 },
+    { name: 'upload_video', maxCount: 1 }
+  ]),
+  async (req, res) => {
+    try {
+      const data = stringifyJsonFields({ ...req.body });
+      scrubAnyIsoDates(data);
+      normalizeDateFields(data);
+      stripClientTimestamps(data); // CRITICAL: don't send created_at
 
-    if (!userId) return res.status(400).json({ error: 'user_id is required' });
+      const userId = data.user_id;
+      if (!userId) return res.status(400).json({ error: 'user_id is required' });
 
-    // Handle file uploads
-    if (req.files?.profile_photo) {
-      data.profile_photo = `/images/${req.files.profile_photo[0].filename}`;
+      // Files
+      if (req.files?.profile_photo) {
+        data.profile_photo = `/images/${req.files.profile_photo[0].filename}`;
+      }
+      if (req.files?.upload_video) {
+        const video = req.files.upload_video[0];
+        data.upload_video = `/videos/${video.filename}`;
+        data.video_file_size = video.size;
+        data.video_file_type = video.mimetype;
+        data.video_upload_date = toMySQLDateTime(new Date()); // a DATETIME-like string but you don't store this field in schema; if not needed, remove
+      }
+
+      const percentage = await calculateColumnsPercentage(data);
+      data.columns_percentage = percentage;
+
+      const [rows] = await db.query('SELECT user_id FROM job_seekers WHERE user_id = ?', [userId]);
+
+      if (rows.length === 0) {
+        await db.query('INSERT INTO job_seekers SET ?', [data]); // DB fills created_at itself
+        return res.status(201).json({ message: 'New job seeker inserted', columns_percentage: percentage });
+      } else {
+        // Build update SQL without touching created_at
+        const updateFields = Object.keys(data)
+          .filter(key => key !== 'user_id')
+          .map(key => `${key} = ?`)
+          .join(', ');
+
+        const updateValues = Object.keys(data)
+          .filter(key => key !== 'user_id')
+          .map(key => data[key]);
+
+        const updateSql = `UPDATE job_seekers SET ${updateFields} WHERE user_id = ?`;
+        await db.query(updateSql, [...updateValues, userId]);
+
+        return res.status(200).json({ message: 'Job seeker updated', columns_percentage: percentage });
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: err.message });
     }
-    if (req.files?.upload_video) {
-      const video = req.files.upload_video[0];
-      data.upload_video = `/videos/${video.filename}`;
-      data.video_file_size = video.size;
-      data.video_file_type = video.mimetype;
-      data.video_upload_date = new Date();
-    }
-
-    // Calculate columns percentage with the new data
-    const percentage = await calculateColumnsPercentage(data);
-    data.columns_percentage = percentage;
-
-    const [rows] = await db.query('SELECT * FROM job_seekers WHERE user_id = ?', [userId]);
-
-    if (rows.length === 0) {
-      await db.query('INSERT INTO job_seekers SET ?', [data]);
-      res.status(201).json({ 
-        message: 'New job seeker inserted',
-        columns_percentage: percentage 
-      });
-    } else {
-      const updateFields = Object.keys(data)
-        .filter(key => key !== 'user_id')
-        .map(key => `${key} = ?`)
-        .join(', ');
-
-      const updateValues = Object.keys(data)
-        .filter(key => key !== 'user_id')
-        .map(key => data[key]);
-
-      const updateSql = `UPDATE job_seekers SET ${updateFields} WHERE user_id = ?`;
-      await db.query(updateSql, [...updateValues, userId]);
-      res.status(200).json({ 
-        message: 'Job seeker updated',
-        columns_percentage: percentage 
-      });
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
-});
+);
 
 // ✅ GET: All job seekers
 router.get('/job-seeker', async (req, res) => {
@@ -162,11 +230,7 @@ router.get('/job-seeker', async (req, res) => {
     const parsedResults = results.map(row => {
       jsonFields.forEach(field => {
         if (row[field]) {
-          try {
-            row[field] = JSON.parse(row[field]);
-          } catch (e) {
-            // ignore
-          }
+          try { row[field] = JSON.parse(row[field]); } catch (_) {}
         }
       });
       return row;
@@ -184,11 +248,14 @@ router.get('/job-seeker/:id', async (req, res) => {
     const userId = req.params.id;
     const [results] = await db.query('SELECT * FROM job_seekers WHERE user_id = ?', [userId]);
 
-    if (results.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    if (results.length === 0) return res.status(404).json({ message: 'User not found' });
 
-    res.json(results[0]);
+    const row = results[0];
+    jsonFields.forEach(field => {
+      if (row[field]) { try { row[field] = JSON.parse(row[field]); } catch (_) {} }
+    });
+
+    res.json(row);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -198,23 +265,23 @@ router.get('/job-seeker/:id', async (req, res) => {
 router.put('/job-seeker/:id', async (req, res) => {
   try {
     const userId = req.params.id;
-    const data = stringifyJsonFields(req.body);
-    
-    // Calculate columns percentage with the new data
+    const data = stringifyJsonFields({ ...req.body });
+    scrubAnyIsoDates(data);
+    normalizeDateFields(data);
+    stripClientTimestamps(data); // don't let client override
+
     const percentage = await calculateColumnsPercentage(data);
     data.columns_percentage = percentage;
-    
+
     await db.query('UPDATE job_seekers SET ? WHERE user_id = ?', [data, userId]);
-    res.json({ 
-      message: 'Job seeker updated',
-      columns_percentage: percentage 
-    });
+
+    res.json({ message: 'Job seeker updated', columns_percentage: percentage });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ✅ DELETE: Delete by ID (deletes entire record)
+// ✅ DELETE: Delete by ID
 router.delete('/job-seeker/:id', async (req, res) => {
   try {
     const userId = req.params.id;
@@ -225,46 +292,33 @@ router.delete('/job-seeker/:id', async (req, res) => {
   }
 });
 
-// ✅ DELETE: Delete only profile photo by ID
+// ✅ DELETE: Delete only profile photo
 router.delete('/job-seeker/:id/photo', async (req, res) => {
   try {
     const userId = req.params.id;
-
-    // First get the current profile photo path
     const [results] = await db.query('SELECT profile_photo FROM job_seekers WHERE user_id = ?', [userId]);
-
-    if (results.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    if (results.length === 0) return res.status(404).json({ message: 'User not found' });
 
     const profilePhotoPath = results[0].profile_photo;
-
-    // Update the database to remove the profile photo
     await db.query('UPDATE job_seekers SET profile_photo = NULL WHERE user_id = ?', [userId]);
 
-    // Recalculate columns percentage after removing photo
+    // Recalculate columns percentage
     const [userData] = await db.query('SELECT * FROM job_seekers WHERE user_id = ?', [userId]);
     if (userData.length > 0) {
       const percentage = await calculateColumnsPercentage(userData[0]);
       await db.query('UPDATE job_seekers SET columns_percentage = ? WHERE user_id = ?', [percentage, userId]);
     }
 
-    res.json({
-      message: 'Profile photo deleted',
-      deletedPhotoPath: profilePhotoPath
-    });
+    res.json({ message: 'Profile photo deleted', deletedPhotoPath: profilePhotoPath });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET columns percentage for a specific job seeker
+// ✅ GET: columns percentage (optional email reminder)
 router.get('/job-seeker/columns-percentage/:id', async (req, res) => {
   const userId = req.params.id;
-
-  if (!userId) {
-    return res.status(400).json({ message: "user_id is required" });
-  }
+  if (!userId) return res.status(400).json({ message: 'user_id is required' });
 
   try {
     const [rows] = await db.query(
@@ -272,46 +326,44 @@ router.get('/job-seeker/columns-percentage/:id', async (req, res) => {
       [userId]
     );
 
-    if (rows.length > 0) {
-      const jobSeeker = rows[0];
-      
-      // Check if profile is incomplete (less than 100%)
-      if (jobSeeker.columns_percentage < 100) {
-        try {
-          // You would need to implement sendIncompleteProfileReminder similar to the reference code
-          await sendIncompleteProfileReminder(
-            jobSeeker.email_id,
-            jobSeeker.first_name,
-            jobSeeker.columns_percentage
-          );
-        } catch (emailErr) {
-          console.error('Error sending incomplete profile reminder:', emailErr);
-          // Continue with the response even if email fails
-        }
-      }
-      
-      res.json({ columns_percentage: jobSeeker.columns_percentage });
-    } else {
-      res.status(404).json({ message: "No data found for the given user_id" });
-    }
+    if (rows.length === 0) return res.status(404).json({ message: 'No data found for the given user_id' });
+
+    const jobSeeker = rows[0];
+
+    // if (jobSeeker.columns_percentage < 100) {
+    //   try {
+    //     await sendIncompleteProfileReminder(
+    //       jobSeeker.email_id,
+    //       jobSeeker.first_name,
+    //       jobSeeker.columns_percentage
+    //     );
+    //   } catch (e) {
+    //     console.error('Error sending incomplete profile reminder:', e);
+    //   }
+    // }
+
+    res.json({ columns_percentage: jobSeeker.columns_percentage });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Database error", error: err.message });
+    res.status(500).json({ message: 'Database error', error: err.message });
   }
 });
 
+// ✅ PUT: Update verification/status (and Verified email)
 router.put('/job-seeker/status/:id', async (req, res) => {
   try {
     const userId = req.params.id;
-    const data = stringifyJsonFields(req.body);
+    const data = stringifyJsonFields({ ...req.body });
+    scrubAnyIsoDates(data);
+    normalizeDateFields(data);
+    stripClientTimestamps(data);
 
-    // Get the current verification status before updating
     const [currentData] = await db.query(
       'SELECT verification_status, email_id, first_name FROM job_seekers WHERE user_id = ?',
       [userId]
     );
 
-    // Calculate columns percentage with the new data
+    // Merge to compute percentage correctly
     const [userData] = await db.query('SELECT * FROM job_seekers WHERE user_id = ?', [userId]);
     if (userData.length > 0) {
       const mergedData = { ...userData[0], ...data };
@@ -321,18 +373,15 @@ router.put('/job-seeker/status/:id', async (req, res) => {
 
     await db.query('UPDATE job_seekers SET ? WHERE user_id = ?', [data, userId]);
 
-    // Check if verification status was changed to "Verified"
-    if (data.verification_status === 'Verified' &&
+    if (
+      data.verification_status === 'Verified' &&
       currentData[0]?.verification_status !== 'Verified' &&
-      currentData[0]?.email_id) {
+      currentData[0]?.email_id
+    ) {
       try {
-        await sendProfileVerifiedEmail(
-          currentData[0].email_id,
-          currentData[0].first_name
-        );
+        await sendProfileVerifiedEmail(currentData[0].email_id, currentData[0].first_name);
       } catch (emailErr) {
         console.error('Error sending verification email:', emailErr);
-        // Don't fail the request if email fails
       }
     }
 
@@ -342,111 +391,90 @@ router.put('/job-seeker/status/:id', async (req, res) => {
   }
 });
 
-// ✅ PUT: Update by ID
+// ✅ PUT: Update subscription (and plan-change email)
 router.put('/job-seeker/subscription/:id', async (req, res) => {
-    try {
-        const userId = req.params.id;
-        const data = stringifyJsonFields(req.body);
-        
-        // Get current subscription data before updating
-        const [currentData] = await db.query(
-            'SELECT subscription_plan, email_id, first_name FROM job_seekers WHERE user_id = ?', 
-            [userId]
+  try {
+    const userId = req.params.id;
+    const data = stringifyJsonFields({ ...req.body });
+    scrubAnyIsoDates(data);
+    normalizeDateFields(data);
+    stripClientTimestamps(data);
+
+    const [currentData] = await db.query(
+      'SELECT subscription_plan, email_id, first_name FROM job_seekers WHERE user_id = ?',
+      [userId]
+    );
+
+    const percentage = await calculateColumnsPercentage(data);
+    data.columns_percentage = percentage;
+
+    await db.query('UPDATE job_seekers SET ? WHERE user_id = ?', [data, userId]);
+
+    if (
+      currentData.length > 0 &&
+      data.subscription_plan &&
+      data.subscription_plan !== currentData[0].subscription_plan &&
+      currentData[0].email_id
+    ) {
+      try {
+        await sendSubscriptionPlanChangeEmail(
+          currentData[0].email_id,
+          currentData[0].first_name,
+          currentData[0].subscription_plan,
+          data.subscription_plan,
+          data.plan_enddate // normalized above
         );
-
-        // Calculate columns percentage with the new data
-        const percentage = await calculateColumnsPercentage(data);
-        data.columns_percentage = percentage;
-        
-        await db.query('UPDATE job_seekers SET ? WHERE user_id = ?', [data, userId]);
-
-        // Check if subscription plan was changed
-        if (currentData.length > 0 && 
-            data.subscription_plan && 
-            data.subscription_plan !== currentData[0].subscription_plan &&
-            currentData[0].email_id) {
-            try {
-                await sendSubscriptionPlanChangeEmail(
-                    currentData[0].email_id,
-                    currentData[0].first_name,
-                    currentData[0].subscription_plan,
-                    data.subscription_plan,
-                    data.plan_enddate
-                );
-            } catch (emailErr) {
-                console.error('Error sending plan change email:', emailErr);
-                // Don't fail the request if email fails
-            }
-        }
-
-        res.json({ 
-            message: 'Job seeker updated',
-            columns_percentage: percentage 
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+      } catch (emailErr) {
+        console.error('Error sending plan change email:', emailErr);
+      }
     }
+
+    res.json({ message: 'Job seeker updated', columns_percentage: percentage });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// New endpoint to check and send plan upgrade emails
-// Updated check-plan-upgrades endpoint
+// ✅ GET: Check and send plan upgrade emails
 router.get('/job-seeker/check-plan-upgrades', async (req, res) => {
   console.log('Plan upgrade check endpoint hit');
-  
+
   try {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
-    
-    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+
+    const tomorrowStr = toMySQLDate(tomorrow); // 'YYYY-MM-DD'
     console.log('Checking for plans ending on:', tomorrowStr);
 
-    // Find job seekers with plans ending tomorrow
     const [jobSeekers] = await db.query(
-      `SELECT user_id, first_name, email_id, agency_mail, plan_enddate, subscription_plan, whatsapp_number 
-       FROM job_seekers 
+      `SELECT user_id, first_name, email_id, agency_mail, plan_enddate, subscription_plan, whatsapp_number
+       FROM job_seekers
        WHERE plan_enddate = ? AND subscription_plan IS NOT NULL`,
       [tomorrowStr]
     );
 
     console.log(`Found ${jobSeekers.length} job seekers with plans ending tomorrow`);
-    
+
     let upgradeEmailsSent = 0;
     let whatsappRemindersSent = 0;
     const errors = [];
-    
-    // Process each job seeker
+
     for (const jobSeeker of jobSeekers) {
       try {
-        console.log(`Processing job seeker ${jobSeeker.user_id} with plan ${jobSeeker.subscription_plan}`);
-        
-        // First check if WhatsApp number is missing
         if (!jobSeeker.whatsapp_number) {
-          console.log(`Job seeker ${jobSeeker.user_id} is missing WhatsApp number`);
-          await sendWhatsappNumberReminder(
-            jobSeeker.email_id,
-            jobSeeker.first_name
-          );
+          await sendWhatsappNumberReminder(jobSeeker.email_id, jobSeeker.first_name);
           whatsappRemindersSent++;
-          console.log(`Sent WhatsApp number reminder to ${jobSeeker.email_id}`);
         }
 
-        // Then proceed with plan upgrade check
         let nextPlan;
-        switch(jobSeeker.subscription_plan.toLowerCase()) {
-          case '30 days plan':
-            nextPlan = '60 days plan';
-            break;
-          case '60 days plan':
-            nextPlan = '90 days plan';
-            break;
-          default:
-            nextPlan = null;
+        switch ((jobSeeker.subscription_plan || '').toLowerCase()) {
+          case '30 days plan': nextPlan = '60 days plan'; break;
+          case '60 days plan': nextPlan = '90 days plan'; break;
+          default: nextPlan = null;
         }
 
         if (nextPlan) {
-          console.log(`Suggesting upgrade from ${jobSeeker.subscription_plan} to ${nextPlan}`);
-          
           await sendPlanUpgradeEmailToJobSeeker(
             jobSeeker.agency_mail,
             jobSeeker.first_name,
@@ -455,16 +483,9 @@ router.get('/job-seeker/check-plan-upgrades', async (req, res) => {
             jobSeeker.plan_enddate
           );
           upgradeEmailsSent++;
-          console.log(`Sent upgrade email to ${jobSeeker.agency_mail}`);
-        } else {
-          console.log(`No upgrade available for plan ${jobSeeker.subscription_plan}`);
         }
       } catch (emailErr) {
-        console.error(`Failed to process job seeker ${jobSeeker.user_id}:`, emailErr);
-        errors.push({
-          userId: jobSeeker.user_id,
-          error: emailErr.message
-        });
+        errors.push({ userId: jobSeeker.user_id, error: emailErr.message });
       }
     }
 
@@ -475,15 +496,11 @@ router.get('/job-seeker/check-plan-upgrades', async (req, res) => {
       jobSeekersChecked: jobSeekers.length,
       upgradeEmailsSent,
       whatsappRemindersSent,
-      errors: errors.length > 0 ? errors : undefined
+      errors: errors.length ? errors : undefined
     });
   } catch (err) {
     console.error('Error in plan upgrade check:', err);
-    res.status(500).json({ 
-      success: false,
-      error: err.message,
-      message: 'Failed to check plan upgrades'
-    });
+    res.status(500).json({ success: false, error: err.message, message: 'Failed to check plan upgrades' });
   }
 });
 
@@ -491,30 +508,14 @@ router.get('/job-seeker/check-plan-upgrades', async (req, res) => {
 router.post('/send-email', async (req, res) => {
   try {
     const { to_email, subject, message } = req.body;
-
-    // Validate required fields
     if (!to_email || !subject || !message) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Missing required fields: to_email, subject, or message' 
-      });
+      return res.status(400).json({ success: false, message: 'Missing required fields: to_email, subject, or message' });
     }
-
-    // Send the email
     const result = await sendCustomEmail(to_email, subject, message);
-    
-    res.status(200).json({
-      success: true,
-      message: 'Email sent successfully',
-      data: result
-    });
+    res.status(200).json({ success: true, message: 'Email sent successfully', data: result });
   } catch (err) {
     console.error('Error sending email:', err);
-    res.status(500).json({ 
-      success: false,
-      message: err.message || 'Failed to send email',
-      error: err.message
-    });
+    res.status(500).json({ success: false, message: err.message || 'Failed to send email', error: err.message });
   }
 });
 
