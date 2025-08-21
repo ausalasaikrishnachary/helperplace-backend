@@ -11,10 +11,12 @@
   "license": "ISC",
   "dependencies": {
     "body-parser": "^2.2.0",
+    "canvas": "^3.1.2",
     "cors": "^2.8.5",
     "dotenv": "^17.0.1",
     "express": "^5.1.0",
-    "multer": "^2.0.1",
+    "face-api.js": "^0.22.2",
+    "multer": "^2.0.2",
     "mysql2": "^3.14.1",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.5"

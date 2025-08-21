@@ -7,7 +7,6 @@ const {
   sendPlanUpgradeEmailToJobSeeker,
   sendWhatsappNumberReminder,
   sendCustomEmail,
-  // sendIncompleteProfileReminder // add if you actually have it
 } = require('./emailService');
 const multer = require('multer');
 const path = require('path');
@@ -69,7 +68,6 @@ function stringifyJsonFields(data) {
 // -------- Date helpers (ISO -> MySQL) --------
 const pad2 = n => String(n).padStart(2, '0');
 
-// Use UTC for consistency. If you prefer local, replace getUTC* with get*.
 function toMySQLDateTime(value) {
   const d = value instanceof Date ? value : new Date(value);
   if (isNaN(d)) return null;
@@ -162,7 +160,8 @@ async function calculateColumnsPercentage(data) {
 
 // ===================== ROUTES =====================
 
-// ✅ POST: Create or update job seeker
+// ✅ POST: Create or update job seeker and doctor profile
+// ✅ POST: Create or update job seeker and doctor profile
 router.post(
   '/job-seeker',
   upload.fields([
@@ -170,58 +169,139 @@ router.post(
     { name: 'upload_video', maxCount: 1 }
   ]),
   async (req, res) => {
+    let connection;
     try {
+      connection = await db.getConnection();
+      await connection.beginTransaction();
+
+      // Stringify JSON fields for both job_seekers and doctor_profile
       const data = stringifyJsonFields({ ...req.body });
       scrubAnyIsoDates(data);
       normalizeDateFields(data);
-      stripClientTimestamps(data); // CRITICAL: don't send created_at
+      stripClientTimestamps(data);
 
       const userId = data.user_id;
-      if (!userId) return res.status(400).json({ error: 'user_id is required' });
+      if (!userId) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'user_id is required' });
+      }
 
-      // Files
+      // Separate data for job_seekers and doctor_profile tables
+      const jobSeekerData = {};
+      const doctorProfileData = {};
+
+      // Split the data based on field prefixes
+      Object.keys(data).forEach(key => {
+        if (key.startsWith('dtr_')) {
+          doctorProfileData[key] = data[key];
+        } else {
+          jobSeekerData[key] = data[key];
+        }
+      });
+
+      // Files handling (for job_seekers table)
       if (req.files?.profile_photo) {
-        data.profile_photo = `/images/${req.files.profile_photo[0].filename}`;
+        jobSeekerData.profile_photo = `/images/${req.files.profile_photo[0].filename}`;
       }
       if (req.files?.upload_video) {
         const video = req.files.upload_video[0];
-        data.upload_video = `/videos/${video.filename}`;
-        data.video_file_size = video.size;
-        data.video_file_type = video.mimetype;
-        data.video_upload_date = toMySQLDateTime(new Date()); // a DATETIME-like string but you don't store this field in schema; if not needed, remove
+        jobSeekerData.upload_video = `/videos/${video.filename}`;
+        jobSeekerData.video_file_size = video.size;
+        jobSeekerData.video_file_type = video.mimetype;
+        jobSeekerData.video_upload_date = toMySQLDateTime(new Date());
       }
 
-      const percentage = await calculateColumnsPercentage(data);
-      data.columns_percentage = percentage;
+      // Calculate percentage for job_seekers table
+      const percentage = await calculateColumnsPercentage(jobSeekerData);
+      jobSeekerData.columns_percentage = percentage;
 
-      const [rows] = await db.query('SELECT user_id FROM job_seekers WHERE user_id = ?', [userId]);
+      // Process job_seekers table
+      const [jobSeekerRows] = await connection.query(
+        'SELECT user_id FROM job_seekers WHERE user_id = ?',
+        [userId]
+      );
 
-      if (rows.length === 0) {
-        await db.query('INSERT INTO job_seekers SET ?', [data]); // DB fills created_at itself
-        return res.status(201).json({ message: 'New job seeker inserted', columns_percentage: percentage });
+      if (jobSeekerRows.length === 0) {
+        await connection.query('INSERT INTO job_seekers SET ?', [jobSeekerData]);
       } else {
-        // Build update SQL without touching created_at
-        const updateFields = Object.keys(data)
+        const updateFields = Object.keys(jobSeekerData)
           .filter(key => key !== 'user_id')
           .map(key => `${key} = ?`)
           .join(', ');
 
-        const updateValues = Object.keys(data)
+        const updateValues = Object.keys(jobSeekerData)
           .filter(key => key !== 'user_id')
-          .map(key => data[key]);
+          .map(key => jobSeekerData[key]);
 
         const updateSql = `UPDATE job_seekers SET ${updateFields} WHERE user_id = ?`;
-        await db.query(updateSql, [...updateValues, userId]);
-
-        return res.status(200).json({ message: 'Job seeker updated', columns_percentage: percentage });
+        await connection.query(updateSql, [...updateValues, userId]);
       }
+
+      // Process doctor_profile table (only if there are dtr_ fields)
+      if (Object.keys(doctorProfileData).length > 0) {
+        // Add user_id and user_name to doctor profile data if available
+        if (jobSeekerData.user_id) doctorProfileData.dtr_user_id = jobSeekerData.user_id;
+        if (jobSeekerData.user_name) doctorProfileData.dtr_user_name = jobSeekerData.user_name;
+
+        // Ensure all array/object fields in doctor profile are properly stringified
+        const doctorJsonFields = [
+          'dtr_preferred_country',
+          'dtr_language_skilled',
+          'dtr_country_doctor_license',
+          'dtr_driving_license_country',
+          'dtr_preferred_job_location',
+          'dtr_previous_hospital_details',
+          'dtr_before_worked_country',
+          'dtr_certificate_options',
+          'dtr_specialty_qualifications',
+          'dtr_super_spl_qualifications'
+        ];
+        
+        doctorJsonFields.forEach(field => {
+          if (doctorProfileData[field] && typeof doctorProfileData[field] !== 'string') {
+            doctorProfileData[field] = JSON.stringify(doctorProfileData[field]);
+          }
+        });
+
+        const [doctorProfileRows] = await connection.query(
+          'SELECT dtr_user_id FROM doctor_profile WHERE dtr_user_id = ?',
+          [userId]
+        );
+
+        if (doctorProfileRows.length === 0) {
+          await connection.query('INSERT INTO doctor_profile SET ?', [doctorProfileData]);
+        } else {
+          const updateFields = Object.keys(doctorProfileData)
+            .filter(key => key !== 'dtr_user_id')
+            .map(key => `${key} = ?`)
+            .join(', ');
+
+          const updateValues = Object.keys(doctorProfileData)
+            .filter(key => key !== 'dtr_user_id')
+            .map(key => doctorProfileData[key]);
+
+          const updateSql = `UPDATE doctor_profile SET ${updateFields} WHERE dtr_user_id = ?`;
+          await connection.query(updateSql, [...updateValues, userId]);
+        }
+      }
+
+      await connection.commit();
+
+      res.status(200).json({
+        message: 'Data saved successfully',
+        columns_percentage: percentage,
+        doctor_profile_updated: Object.keys(doctorProfileData).length > 0
+      });
+
     } catch (err) {
-      console.error(err);
+      if (connection) await connection.rollback();
+      console.error('Error in job-seeker POST:', err);
       res.status(500).json({ error: err.message });
+    } finally {
+      if (connection) connection.release();
     }
   }
 );
-
 // ✅ GET: All job seekers
 router.get('/job-seeker', async (req, res) => {
   try {

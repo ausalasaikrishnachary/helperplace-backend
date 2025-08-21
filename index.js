@@ -31,12 +31,14 @@ const forgotpassword = require('./routes/forgotpassword');
 const Jobpositionroutes = require('./routes/Jobpositionroutes');
 const Subscriptionplanroutes = require('./routes/Subscriptionplanroutes');
 const AgencySubscriptionplansRoutes = require('./routes/AgencySubscriptionplansRoutes');
+const mailRoutes = require('./routes/mailRoutes');
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
 app.use('/api', agencyRoutes);
 app.use("/api/employer", employerRoutes);
 app.use("/", applyRoutes);
+app.use("/message", mailRoutes);
 app.use("/api/jobreport", job_reportRoutes);
 app.use("/api/candidatereport", candidate_reportRoutes);
 app.use("/api/jobposition", Jobpositionroutes);
