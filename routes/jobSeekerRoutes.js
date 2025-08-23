@@ -341,6 +341,24 @@ router.get('/job-seeker/:id', async (req, res) => {
   }
 });
 
+router.get('/job-seeker/doctor/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const [results] = await db.query('SELECT * FROM doctor_profile WHERE dtr_user_id = ?', [userId]);
+
+    if (results.length === 0) return res.status(404).json({ message: 'User not found' });
+
+    const row = results[0];
+    jsonFields.forEach(field => {
+      if (row[field]) { try { row[field] = JSON.parse(row[field]); } catch (_) {} }
+    });
+
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ✅ PUT: Update by ID
 router.put('/job-seeker/:id', async (req, res) => {
   try {
