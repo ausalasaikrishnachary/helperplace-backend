@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../db'); // adjust path as needed
 
 // Get all job reports
-router.get('/', async (req, res) => {
+router.get('/jobreport/', async (req, res) => {
   try {
     const [results] = await db.query('SELECT * FROM job_reports');
     res.json(results);
@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get a job report by ID
-router.get('/:id', async (req, res) => {
+router.get('/jobreport/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const [results] = await db.query('SELECT * FROM job_reports WHERE id = ?', [id]);
@@ -27,7 +27,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create a new job report
-router.post('/', async (req, res) => {
+router.post('/jobreport', async (req, res) => {
   const { user_id, first_name, job_id, emp_id, email, reason, description } = req.body;
   try {
     const query = `
@@ -53,7 +53,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update an existing report
-router.put('/:id', async (req, res) => {
+router.put('/obreport/:id', async (req, res) => {
   const { id } = req.params;
   const { user_id, first_name, job_id, emp_id, email, reason, description } = req.body;
   try {
@@ -71,7 +71,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete a report
-router.delete('/:id', async (req, res) => {
+router.delete('/jobreport/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await db.query('DELETE FROM job_reports WHERE id = ?', [id]);

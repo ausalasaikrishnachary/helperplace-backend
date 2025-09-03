@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../db');
 
 // Get all job positions
-router.get('/', async (req, res) => {
+router.get('/jobposition', async (req, res) => {
   try {
     const [results] = await db.query('SELECT * FROM job_position');
     res.json(results);
@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get job position by ID
-router.get('/:id', async (req, res) => {
+router.get('/jobposition/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const [results] = await db.query('SELECT * FROM job_position WHERE id = ?', [id]);
@@ -25,7 +25,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create a new job position
-router.post('/', async (req, res) => {
+router.post('/jobposition', async (req, res) => {
   const { position, category } = req.body;
 
   if (!position || !category) {
@@ -52,7 +52,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update job position
-router.put('/:id', async (req, res) => {
+router.put('/jobposition/:id', async (req, res) => {
   const { id } = req.params;
   const { position, category } = req.body;
   
@@ -73,7 +73,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete job position
-router.delete('/:id', async (req, res) => {
+router.delete('/jobposition/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await db.query('DELETE FROM job_position WHERE id = ?', [id]);

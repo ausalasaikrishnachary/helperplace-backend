@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../db'); // adjust path as needed
 
 // Get all mails
-router.get('/get-all', async (req, res) => {
+router.get('/message/get-all', async (req, res) => {
   try {
     const [results] = await db.query('SELECT * FROM mails_table');
     res.json(results);
@@ -13,7 +13,7 @@ router.get('/get-all', async (req, res) => {
 });
 
 // Get a mail by ID
-router.get('/:id', async (req, res) => {
+router.get('/message/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const [results] = await db.query('SELECT * FROM mails_table WHERE id = ?', [id]);
@@ -27,7 +27,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Get mails by employee ID
-router.get('/employee/:emp_id', async (req, res) => {
+router.get('/message/employee/:emp_id', async (req, res) => {
   const { emp_id } = req.params;
   try {
     const [results] = await db.query('SELECT * FROM mails_table WHERE emp_id = ?', [emp_id]);
@@ -38,7 +38,7 @@ router.get('/employee/:emp_id', async (req, res) => {
 });
 
 // Get mails by job seeker ID
-router.get('/job-seeker/:job_seeker_id', async (req, res) => {
+router.get('/message/job-seeker/:job_seeker_id', async (req, res) => {
   const { job_seeker_id } = req.params;
   try {
     const [results] = await db.query('SELECT * FROM mails_table WHERE job_seeker_id = ?', [job_seeker_id]);
@@ -49,7 +49,7 @@ router.get('/job-seeker/:job_seeker_id', async (req, res) => {
 });
 
 // Get by emp_id and job_seeker_id
-router.get('/:emp_id/:job_seeker_id/get', async (req, res) => {
+router.get('/message/:emp_id/:job_seeker_id/get', async (req, res) => {
   const { emp_id, job_seeker_id } = req.params;
   try {
     const [results] = await db.query(
@@ -64,7 +64,7 @@ router.get('/:emp_id/:job_seeker_id/get', async (req, res) => {
 
 
 // Create a new mail
-router.post('/', async (req, res) => {
+router.post('/message', async (req, res) => {
   const { emp_id, job_seeker_id, message } = req.body;
   try {
     const query = `
@@ -86,7 +86,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update an existing mail
-router.put('/:id', async (req, res) => {
+router.put('message/:id', async (req, res) => {
   const { id } = req.params;
   const { emp_id, job_seeker_id, message } = req.body;
   try {
@@ -104,7 +104,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete a mail
-router.delete('/:id', async (req, res) => {
+router.delete('message/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await db.query('DELETE FROM mails_table WHERE id = ?', [id]);

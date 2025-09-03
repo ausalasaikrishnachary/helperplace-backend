@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../db');
 
 // Get all agency subscription plans
-router.get('/', async (req, res) => {
+router.get('/agencysubscriptionplans', async (req, res) => {
   try {
     const [results] = await db.query('SELECT * FROM agency_subscription_plans');
     res.json(results);
@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get agency subscription plan by ID
-router.get('/:id', async (req, res) => {
+router.get('/agencysubscriptionplans/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const [results] = await db.query('SELECT * FROM agency_subscription_plans WHERE id = ?', [id]);
@@ -26,7 +26,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create a new agency subscription plan
-router.post('/', async (req, res) => {
+router.post('/agencysubscriptionplans', async (req, res) => {
   const {
     plan_name,
     candidate_posting,
@@ -67,7 +67,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update agency subscription plan
-router.put('/:id', async (req, res) => {
+router.put('/agencysubscriptionplans/:id', async (req, res) => {
   const { id } = req.params;
   const {
     plan_name,
@@ -109,7 +109,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete agency subscription plan
-router.delete('/:id', async (req, res) => {
+router.delete('/agencysubscriptionplans/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await db.query('DELETE FROM agency_subscription_plans WHERE id = ?', [id]);

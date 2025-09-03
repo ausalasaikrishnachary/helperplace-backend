@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../db');
 
 // Get all subscription plans
-router.get('/', async (req, res) => {
+router.get('/subscriptionplans', async (req, res) => {
   try {
     const [results] = await db.query('SELECT * FROM subscription_plans');
     res.json(results);
@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get subscription plan by ID
-router.get('/:id', async (req, res) => {
+router.get('/subscriptionplans/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const [results] = await db.query('SELECT * FROM subscription_plans WHERE id = ?', [id]);
@@ -25,7 +25,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create a new subscription plan
-router.post('/', async (req, res) => {
+router.post('/subscriptionplans', async (req, res) => {
   const {
     plan_name,
     listing_duration_days,
@@ -86,7 +86,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update subscription plan
-router.put('/:id', async (req, res) => {
+router.put('/subscriptionplans/:id', async (req, res) => {
   const { id } = req.params;
   const {
     plan_name,
@@ -145,7 +145,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete subscription plan
-router.delete('/:id', async (req, res) => {
+router.delete('/subscriptionplans/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await db.query('DELETE FROM subscription_plans WHERE id = ?', [id]);

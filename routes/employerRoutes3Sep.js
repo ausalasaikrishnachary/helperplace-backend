@@ -60,14 +60,7 @@ const handleMulterError = (err, req, res, next) => {
 };
 
 // Helper function to handle JSON fields if needed
-const jsonFields = [
-  'preferred_years_of_experience',
-  'candidates_country_experience',
-  'preferred_candidates_country',
-  'main_skills',
-  'cooking_skills',
-  'other_skills'
-]; // Add any JSON fields you need to handle here
+const jsonFields = []; // Add any JSON fields you need to handle here
 
 function stringifyJsonFields(data) {
   jsonFields.forEach(field => {
@@ -127,7 +120,6 @@ router.get("/employer/check-subscriptions", async (req, res) => {
 });
 
 // POST or UPDATE employer record with photo upload support
-// POST or UPDATE employer record with photo upload support
 router.post("/employer", upload.single('profile_photo'), handleMulterError, async (req, res) => {
   const data = req.body;
   const { temporary_id, user_id } = data;
@@ -142,9 +134,6 @@ router.post("/employer", upload.single('profile_photo'), handleMulterError, asyn
       // Use relative path for web access
       data.profile_photo = `/images/${req.file.filename}`;
     }
-
-    // Process JSON fields
-    stringifyJsonFields(data);
 
     // Calculate columns percentage with the new data
     const percentage = await calculateColumnsPercentage(data);
@@ -162,24 +151,14 @@ router.post("/employer", upload.single('profile_photo'), handleMulterError, asyn
       const previousPlanName = existing[0].plan_name;
       const previousPlanEndDate = existing[0].plan_enddate;
 
-      // Filter out undefined values and only include fields that are present in the request
-      const updateData = {};
-      Object.keys(data).forEach(key => {
-        if (key !== "temporary_id" && key !== "user_id" && data[key] !== undefined) {
-          updateData[key] = data[key];
-        }
-      });
-
-      if (Object.keys(updateData).length === 0) {
-        return res.status(400).json({ message: "No valid fields to update" });
-      }
-
-      const fields = Object.keys(updateData)
+      const fields = Object.keys(data)
+        .filter(key => key !== "temporary_id" && key !== "user_id")
         .map(key => `${key} = ?`)
         .join(", ");
 
-      const values = Object.keys(updateData)
-        .map(key => updateData[key]);
+      const values = Object.keys(data)
+        .filter(key => key !== "temporary_id" && key !== "user_id")
+        .map(key => data[key]);
 
       await db.execute(
         `UPDATE employer SET ${fields} WHERE temporary_id = ? AND user_id = ?`,
@@ -200,49 +179,15 @@ router.post("/employer", upload.single('profile_photo'), handleMulterError, asyn
 
       res.json({ message: "Updated successfully", id, columns_percentage: percentage });
     } else {
-      // Insert new row with only the provided fields
-      const columns = [];
-      const placeholders = [];
-      const values = [];
-      
-      // Always include required fields
-      columns.push('user_id', 'temporary_id');
-      placeholders.push('?', '?');
-      values.push(user_id, temporary_id);
-      
-      // Add optional fields that are provided
-      const optionalFields = [
-        'emp_name', 'domestic_worker_category', 'job_type', 
-        'job_title', 'job_description', 'job_starting_date', 'prefer_contract_status', 
-        'looking_worker_for', 'candidate_experience', 'prefer_experience', 
-        'preferred_years_of_experience', 'gulf_experience_years', 'total_experience_years', 
-        'candidates_country_experience', 'preferred_candidates_country', 
-        'preferred_language_for_worker', 'locaion_preference', 'most_important_skill', 
-        'main_skills', 'cooking_skills', 'other_skills', 'gender', 'religion', 
-        'education_level', 'age', 'working_city', 'state_or_province', 'name', 
-        'email_id', 'whatsapp_number_country_code', 'whatsapp_number', 
-        'phone_number_country_code', 'phone_number', 'nationality', 
-        'organization_name', 'offer_for_selected_candidates', 'country_currency', 
-        'minimum_monthly_salary', 'maximum_monthly_salary', 'negotiable', 
-        'adults', 'children', 'type_of_house', 'rooms', 'bathrooms', 'have_pets', 
-        'worker_nationality', 'phone_country_code', 'location_preference', 
-        'domestic_worker_name', 'have_domestic_worker', 'nationality_of_domestic_worker', 
-        'status', 'subscription', 'plan_name', 'plan_days', 'plan_startdate', 
-        'plan_enddate', 'posted_by', 'view_count', 'posted_on', 'profile_photo', 
-        'columns_percentage'
-      ];
-      
-      optionalFields.forEach(field => {
-        if (data[field] !== undefined) {
-          columns.push(field);
-          placeholders.push('?');
-          values.push(data[field]);
-        }
-      });
-      
-      const query = `INSERT INTO employer (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`;
-      
-      const [result] = await db.execute(query, values);
+      // Insert new row
+      const keys = Object.keys(data);
+      const values = Object.values(data);
+      const placeholders = keys.map(() => "?").join(", ");
+
+      const [result] = await db.execute(
+        `INSERT INTO employer (${keys.join(", ")}) VALUES (${placeholders})`,
+        values
+      );
 
       res.json({ 
         message: "Inserted successfully", 
@@ -400,9 +345,6 @@ router.put("/employer/", upload.single('profile_photo'), handleMulterError, asyn
       data.profile_photo = `/images/${req.file.filename}`;
     }
 
-    // Process JSON fields
-    stringifyJsonFields(data);
-
     // First get the existing record to check for subscription changes and merge data
     const [existing] = await db.execute(
       `SELECT * FROM employer WHERE temporary_id = ? AND user_id = ?`,
@@ -434,7 +376,11 @@ router.put("/employer/", upload.single('profile_photo'), handleMulterError, asyn
     // Build the SET clause and prepare values
     setClause = updateFields.map(key => `${key} = ?`).join(", ");
     
-    values = updateFields.map(key => data[key]);
+    // Convert array values to JSON strings
+    values = updateFields.map(key => {
+      const value = data[key];
+      return Array.isArray(value) ? JSON.stringify(value) : value;
+    });
     
     values.push(temporary_id, user_id);
 
@@ -576,9 +522,6 @@ router.put("/employer/:id", upload.single('profile_photo'), handleMulterError, a
       data.profile_photo = `/images/${req.file.filename}`;
     }
 
-    // Process JSON fields
-    stringifyJsonFields(data);
-
     // First get the existing record to check for subscription changes and merge data
     const [existing] = await db.execute(
       `SELECT * FROM employer WHERE id = ?`,
@@ -610,7 +553,11 @@ router.put("/employer/:id", upload.single('profile_photo'), handleMulterError, a
     // Build the SET clause and prepare values
     setClause = updateFields.map(key => `${key} = ?`).join(", ");
     
-    values = updateFields.map(key => data[key]);
+    // Convert array values to JSON strings
+    values = updateFields.map(key => {
+      const value = data[key];
+      return Array.isArray(value) ? JSON.stringify(value) : value;
+    });
     
     values.push(id);
 
