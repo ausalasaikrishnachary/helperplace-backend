@@ -38,8 +38,8 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ 
-  storage, 
+const upload = multer({
+  storage,
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit
@@ -68,7 +68,7 @@ async function calculateColumnsPercentage(data) {
       WHERE TABLE_NAME = 'employer' 
       AND COLUMN_NAME NOT IN ('columns_percentage', 'id')
     `);
-    
+
     const totalColumns = columnsInfo.length;
     let filledColumns = 0;
 
@@ -99,7 +99,7 @@ router.get("/employer/check-subscriptions", async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ 
+    res.status(500).json({
       message: "Error processing subscription reminders",
       error: err.message
     });
@@ -152,15 +152,25 @@ router.post("/employer", upload.single('profile_photo'), async (req, res) => {
       );
 
       // Check if subscription was renewed
-      if (data.plan_name && data.plan_enddate && 
-          (data.plan_name !== previousPlanName || data.plan_enddate !== previousPlanEndDate)) {
-        await emailService.sendSubscriptionRenewalConfirmation(
-          data.email_id || existing[0].email_id,
-          data.name || existing[0].name,
-          data.plan_name,
-          data.plan_enddate
-        );
-        console.log(`Sent renewal confirmation to ${data.email_id || existing[0].email_id}`);
+      // Check if subscription was renewed
+      if (data.plan_name && data.plan_enddate &&
+        (data.plan_name !== previousPlanName || data.plan_enddate !== previousPlanEndDate)) {
+
+        // Get email from current data or existing record
+        const email = data.email_id || existing[0].email_id;
+
+        // Only send email if we have a valid email address
+        if (email) {
+          await emailService.sendSubscriptionRenewalConfirmation(
+            email,
+            data.name || existing[0].name,
+            data.plan_name,
+            data.plan_enddate
+          );
+          console.log(`Sent renewal confirmation to ${email}`);
+        } else {
+          console.log('Skipping email sending: No email address available');
+        }
       }
 
       res.json({ message: "Updated successfully", id, columns_percentage: percentage });
@@ -175,10 +185,10 @@ router.post("/employer", upload.single('profile_photo'), async (req, res) => {
         values
       );
 
-      res.json({ 
-        message: "Inserted successfully", 
+      res.json({
+        message: "Inserted successfully",
         id: result.insertId,
-        columns_percentage: percentage 
+        columns_percentage: percentage
       });
     }
   } catch (err) {
@@ -306,7 +316,7 @@ router.get("/employer/check-low-views", async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ 
+    res.status(500).json({
       message: "Error processing low views reminders",
       error: err.message
     });
@@ -346,7 +356,7 @@ router.put("/employer/", upload.single('profile_photo'), async (req, res) => {
 
     // Merge existing data with new data to calculate percentage accurately
     const mergedData = { ...existing[0], ...data };
-    
+
     // Calculate columns percentage with merged data
     const percentage = await calculateColumnsPercentage(mergedData);
     data.columns_percentage = percentage;
@@ -354,20 +364,20 @@ router.put("/employer/", upload.single('profile_photo'), async (req, res) => {
     // Filter out temporary_id and user_id from update fields
     const updateFields = Object.keys(data)
       .filter(key => key !== "temporary_id" && key !== "user_id");
-    
+
     if (updateFields.length === 0) {
       return res.status(400).json({ message: "No fields to update" });
     }
 
     // Build the SET clause and prepare values
     setClause = updateFields.map(key => `${key} = ?`).join(", ");
-    
+
     // Convert array values to JSON strings
     values = updateFields.map(key => {
       const value = data[key];
       return Array.isArray(value) ? JSON.stringify(value) : value;
     });
-    
+
     values.push(temporary_id, user_id);
 
     const [result] = await db.execute(
@@ -377,8 +387,8 @@ router.put("/employer/", upload.single('profile_photo'), async (req, res) => {
 
     if (result.affectedRows > 0) {
       // Check if subscription was renewed
-      if (data.plan_name && data.plan_enddate && 
-          (data.plan_name !== previousPlanName || data.plan_enddate !== previousPlanEndDate)) {
+      if (data.plan_name && data.plan_enddate &&
+        (data.plan_name !== previousPlanName || data.plan_enddate !== previousPlanEndDate)) {
         await emailService.sendSubscriptionRenewalConfirmation(
           data.email_id || existing[0].email_id,
           data.name || existing[0].name,
@@ -388,9 +398,9 @@ router.put("/employer/", upload.single('profile_photo'), async (req, res) => {
         console.log(`Sent renewal confirmation to ${data.email_id || existing[0].email_id}`);
       }
 
-      res.json({ 
-        message: "Updated successfully", 
-        columns_percentage: percentage 
+      res.json({
+        message: "Updated successfully",
+        columns_percentage: percentage
       });
     } else {
       res.status(404).json({ message: "No record found to update" });
@@ -402,9 +412,9 @@ router.put("/employer/", upload.single('profile_photo'), async (req, res) => {
       values: values,
       dataReceived: data
     });
-    
-    res.status(500).json({ 
-      message: "Database error", 
+
+    res.status(500).json({
+      message: "Database error",
       error: err.message
     });
   }
@@ -465,7 +475,7 @@ router.get("/employer/columns-percentage/:id", async (req, res) => {
 
     if (rows.length > 0) {
       const employer = rows[0];
-      
+
       // Check if profile is incomplete (less than 100%)
       if (employer.columns_percentage < 100) {
         try {
@@ -479,7 +489,7 @@ router.get("/employer/columns-percentage/:id", async (req, res) => {
           // Continue with the response even if email fails
         }
       }
-      
+
       res.json({ columns_percentage: employer.columns_percentage });
     } else {
       res.status(404).json({ message: "No data found for the given id" });
@@ -523,7 +533,7 @@ router.put("/employer/:id", upload.single('profile_photo'), async (req, res) => 
 
     // Merge existing data with new data to calculate percentage accurately
     const mergedData = { ...existing[0], ...data };
-    
+
     // Calculate columns percentage with merged data
     const percentage = await calculateColumnsPercentage(mergedData);
     data.columns_percentage = percentage;
@@ -531,20 +541,20 @@ router.put("/employer/:id", upload.single('profile_photo'), async (req, res) => 
     // Filter out id from update fields
     const updateFields = Object.keys(data)
       .filter(key => key !== "id");
-    
+
     if (updateFields.length === 0) {
       return res.status(400).json({ message: "No fields to update" });
     }
 
     // Build the SET clause and prepare values
     setClause = updateFields.map(key => `${key} = ?`).join(", ");
-    
+
     // Convert array values to JSON strings
     values = updateFields.map(key => {
       const value = data[key];
       return Array.isArray(value) ? JSON.stringify(value) : value;
     });
-    
+
     values.push(id);
 
     const [result] = await db.execute(
@@ -554,8 +564,8 @@ router.put("/employer/:id", upload.single('profile_photo'), async (req, res) => 
 
     if (result.affectedRows > 0) {
       // Check if subscription was renewed
-      if (data.plan_name && data.plan_enddate && 
-          (data.plan_name !== previousPlanName || data.plan_enddate !== previousPlanEndDate)) {
+      if (data.plan_name && data.plan_enddate &&
+        (data.plan_name !== previousPlanName || data.plan_enddate !== previousPlanEndDate)) {
         await emailService.sendSubscriptionRenewalConfirmation(
           data.email_id || existing[0].email_id,
           data.name || existing[0].name,
@@ -565,9 +575,9 @@ router.put("/employer/:id", upload.single('profile_photo'), async (req, res) => 
         console.log(`Sent renewal confirmation to ${data.email_id || existing[0].email_id}`);
       }
 
-      res.json({ 
-        message: "Updated successfully", 
-        columns_percentage: percentage 
+      res.json({
+        message: "Updated successfully",
+        columns_percentage: percentage
       });
     } else {
       res.status(404).json({ message: "No record found to update" });
@@ -579,9 +589,9 @@ router.put("/employer/:id", upload.single('profile_photo'), async (req, res) => 
       values: values,
       dataReceived: data
     });
-    
-    res.status(500).json({ 
-      message: "Database error", 
+
+    res.status(500).json({
+      message: "Database error",
       error: err.message
     });
   }
