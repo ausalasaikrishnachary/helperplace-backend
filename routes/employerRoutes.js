@@ -248,12 +248,16 @@ router.get("/employer", async (req, res) => {
 
   try {
     const [rows] = await db.execute(
-      `SELECT * FROM employer WHERE temporary_id = ? AND user_id = ?`,
+      `SELECT id, user_id, temporary_id, plan_name, subscription,
+              DATE_FORMAT(plan_startdate, '%Y-%m-%d') AS plan_startdate,
+              DATE_FORMAT(plan_enddate, '%Y-%m-%d') AS plan_enddate
+       FROM employer 
+       WHERE temporary_id = ? AND user_id = ?`,
       [temporary_id, user_id]
     );
 
     if (rows.length > 0) {
-      res.json(rows[0]);
+      res.json(rows[0]); // ✅ dates will be plain strings, no timezone shift
     } else {
       res.status(404).json({ message: "No data found" });
     }
@@ -262,6 +266,7 @@ router.get("/employer", async (req, res) => {
     res.status(500).json({ message: "Database error", error: err.message });
   }
 });
+
 
 // GET employer data by id
 router.get("/employer/:id", async (req, res) => {
