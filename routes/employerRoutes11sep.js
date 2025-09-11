@@ -635,7 +635,8 @@
 
 
 
-// routes/employer.js
+
+// routes/employer.js --- updated code insert into code for fields -- 11-sep-2025
 
 const express = require("express");
 const router = express.Router();
