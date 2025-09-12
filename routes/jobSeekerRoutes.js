@@ -617,4 +617,143 @@ router.post('/send-email', async (req, res) => {
   }
 });
 
+// ✅ GET: Get all records from both job_seekers and doctor_profile tables (merged)
+router.get('/job-seeker/combine/all', async (req, res) => {
+  try {
+    // Query both tables
+    const [jobSeekerResults, doctorProfileResults] = await Promise.all([
+      db.query('SELECT * FROM job_seekers'),
+      db.query('SELECT * FROM doctor_profile')
+    ]);
+
+    const jobSeekers = jobSeekerResults[0];
+    const doctorProfiles = doctorProfileResults[0];
+
+    // Parse JSON fields for job_seekers data
+    jobSeekers.forEach(seeker => {
+      jsonFields.forEach(field => {
+        if (seeker[field]) {
+          try { seeker[field] = JSON.parse(seeker[field]); } catch (_) {}
+        }
+      });
+    });
+
+    // Parse JSON fields for doctor_profile data
+    const doctorJsonFields = [
+      'dtr_preferred_country',
+      'dtr_language_skilled',
+      'dtr_country_doctor_license',
+      'dtr_driving_license_country',
+      'dtr_preferred_job_location',
+      'dtr_previous_hospital_details',
+      'dtr_before_worked_country',
+      'dtr_certificate_options',
+      'dtr_specialty_qualifications',
+      'dtr_super_spl_qualifications'
+    ];
+
+    doctorProfiles.forEach(profile => {
+      doctorJsonFields.forEach(field => {
+        if (profile[field]) {
+          try { profile[field] = JSON.parse(profile[field]); } catch (_) {}
+        }
+      });
+    });
+
+    // Create a map of doctor profiles for easy lookup
+    const doctorProfileMap = {};
+    doctorProfiles.forEach(profile => {
+      if (profile.dtr_user_id) {
+        doctorProfileMap[profile.dtr_user_id] = profile;
+      }
+    });
+
+    // Merge data: for each job seeker, add corresponding doctor profile data
+    const mergedData = jobSeekers.map(seeker => {
+      const doctorProfile = doctorProfileMap[seeker.user_id] || {};
+      
+      // Remove dtr_user_id from doctor profile to avoid duplication with user_id
+      const { dtr_user_id, ...doctorData } = doctorProfile;
+      
+      return {
+        ...seeker,
+        ...doctorData
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      count: mergedData.length,
+      data: mergedData
+    });
+
+  } catch (err) {
+    console.error('Error in merged-all job-seeker GET:', err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message 
+    });
+  }
+});
+
+
+// ✅ GET: Get merged data from both tables by user ID (single object)
+router.get('/job-seeker/merged/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    const [jobSeekerResults, doctorProfileResults] = await Promise.all([
+      db.query('SELECT * FROM job_seekers WHERE user_id = ?', [userId]),
+      db.query('SELECT * FROM doctor_profile WHERE dtr_user_id = ?', [userId])
+    ]);
+
+    if (jobSeekerResults[0].length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    let mergedData = { ...jobSeekerResults[0][0] };
+
+    // Parse JSON fields for job_seekers data
+    jsonFields.forEach(field => {
+      if (mergedData[field]) {
+        try { mergedData[field] = JSON.parse(mergedData[field]); } catch (_) {}
+      }
+    });
+
+    // Add doctor profile data if exists
+    if (doctorProfileResults[0].length > 0) {
+      const doctorProfileData = doctorProfileResults[0][0];
+      
+      const doctorJsonFields = [
+        'dtr_preferred_country',
+        'dtr_language_skilled',
+        'dtr_country_doctor_license',
+        'dtr_driving_license_country',
+        'dtr_preferred_job_location',
+        'dtr_previous_hospital_details',
+        'dtr_before_worked_country',
+        'dtr_certificate_options',
+        'dtr_specialty_qualifications',
+        'dtr_super_spl_qualifications'
+      ];
+
+      // Parse JSON fields for doctor data
+      doctorJsonFields.forEach(field => {
+        if (doctorProfileData[field]) {
+          try { doctorProfileData[field] = JSON.parse(doctorProfileData[field]); } catch (_) {}
+        }
+      });
+
+      // Merge doctor data into main object
+      mergedData = { ...mergedData, ...doctorProfileData };
+    }
+
+    res.status(200).json(mergedData);
+
+  } catch (err) {
+    console.error('Error in merged job-seeker GET:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
