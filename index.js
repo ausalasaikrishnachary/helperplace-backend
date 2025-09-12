@@ -32,6 +32,7 @@ const Jobpositionroutes = require('./routes/Jobpositionroutes');
 const Subscriptionplanroutes = require('./routes/Subscriptionplanroutes');
 const AgencySubscriptionplansRoutes = require('./routes/AgencySubscriptionplansRoutes');
 const mailRoutes = require('./routes/mailRoutes');
+const paynowroutes = require('./routes/paymentRoutes');
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
@@ -45,6 +46,7 @@ app.use("/api/", Jobpositionroutes);
 app.use("/api/", Subscriptionplanroutes);
 app.use("/api/", AgencySubscriptionplansRoutes);
 app.use('/', forgotpassword);
+app.use('/api', paynowroutes);
 require('./routes/inactivityChecker');
 
 // Schedule daily subscription reminder at 1:30 PM IST (08:00 AM UTC)
