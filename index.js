@@ -33,6 +33,9 @@ const Subscriptionplanroutes = require('./routes/Subscriptionplanroutes');
 const AgencySubscriptionplansRoutes = require('./routes/AgencySubscriptionplansRoutes');
 const mailRoutes = require('./routes/mailRoutes');
 const paynowroutes = require('./routes/paymentRoutes');
+const SupportRoutes = require('./routes/SupportRoutes');
+const Tips = require('./routes/TipsRoutes');
+const News = require('./routes/NewsRoutes');
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
@@ -40,6 +43,9 @@ app.use('/api', agencyRoutes);
 app.use("/api/", employerRoutes);
 app.use("/", applyRoutes);
 app.use("/", mailRoutes);
+app.use("/", SupportRoutes);
+app.use("/", Tips);
+app.use("/", News);
 app.use("/api/", job_reportRoutes);
 app.use("/api/", candidate_reportRoutes);
 app.use("/api/", Jobpositionroutes);
@@ -57,7 +63,7 @@ cron.schedule('33 13 * * *', async () => {
     const result = await emailService.checkAndSendSubscriptionReminders(db);
     console.log('✅ Subscription reminders processed:', result);
   } catch (err) {
-    console.error('❌ Error in scheduled subscription reminders:', err);
+    console.error('❌ Error in scheduled subscription reminders:', err); 
   }
 }, {
   timezone: 'Asia/Kolkata'
