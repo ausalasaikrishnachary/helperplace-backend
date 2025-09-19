@@ -257,7 +257,7 @@ router.put("/employer/", upload.single('profile_photo'), handleMulterError, asyn
     if (req.file) {
       data.profile_photo = `/images/${req.file.filename}`;
     }
-    
+
     // Stringify JSON fields properly
     stringifyJsonFields(data);
 
@@ -291,27 +291,27 @@ router.put("/employer/", upload.single('profile_photo'), handleMulterError, asyn
     // Prepare values properly for MySQL
     values = updateFields.map(key => {
       const value = data[key];
-      
+
       // Handle arrays and objects by stringifying them
       if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
         return JSON.stringify(value);
       }
-      
+
       // Handle dates - convert to MySQL format
       if (value instanceof Date) {
         return value.toISOString().slice(0, 19).replace('T', ' ');
       }
-      
+
       // Handle boolean values
       if (typeof value === 'boolean') {
         return value ? 1 : 0;
       }
-      
+
       return value;
     });
 
     setClause = updateFields.map(key => `${key} = ?`).join(", ");
-    
+
     // Add the WHERE clause values
     values.push(temporary_id, user_id);
 
@@ -701,5 +701,56 @@ router.get("/employer/columns-percentage/:id", async (req, res) => {
     res.status(500).json({ message: "Database error", error: err.message });
   }
 });
+
+router.put('/subscription/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const {
+      subscription_plan_id,
+      subscription,
+      plan_name,
+      plan_days,
+      plan_startdate,
+      plan_enddate,
+      payment_status,
+      payment_amount
+    } = req.body;
+
+    // ✅ Update query
+    const [result] = await db.query(
+      `UPDATE users 
+       SET subscription_plan_id = ?, 
+       subscription = ?,
+           plan_name = ?, 
+           plan_days = ?, 
+           plan_startdate = ?, 
+           plan_enddate = ?, 
+           payment_status = ?, 
+           payment_amount = ? 
+       WHERE id = ?`,
+      [
+        subscription_plan_id,
+        subscription,
+        plan_name,
+        plan_days,
+        plan_startdate,
+        plan_enddate,
+        payment_status,
+        payment_amount,
+        userId
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, message: "Subscription details updated successfully" });
+  } catch (error) {
+    console.error("Error updating subscription:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
 
 module.exports = router;
