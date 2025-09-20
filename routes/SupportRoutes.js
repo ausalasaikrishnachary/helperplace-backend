@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { sendContactFormConfirmation } = require('./emailService');
 
 // Get all support tickets
 router.get('/supporttickets/all', async (req, res) => {
@@ -60,6 +61,15 @@ router.post('/supporttickets', async (req, res) => {
       user_role,
       status || 'open' // Default to 'open' if not provided
     ]);
+
+    // Send confirmation email to the user
+    try {
+      await sendContactFormConfirmation(email, name);
+      console.log(`Contact form confirmation email sent to ${email}`);
+    } catch (emailError) {
+      console.error('Error sending confirmation email:', emailError);
+      // Don't fail the request if email fails
+    }
 
     res.status(201).json({
       id: result.insertId,
@@ -175,5 +185,7 @@ router.get('/supporttickets/role/:role', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+
 
 module.exports = router;

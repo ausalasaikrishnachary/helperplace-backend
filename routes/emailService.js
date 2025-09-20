@@ -237,6 +237,25 @@ const sendLowViewsReminder = async (to, firstName, jobTitle, viewCount) => {
     return transporter.sendMail(mailOptions);
 };
 
+
+// 🔟 Contact Form Confirmation Email
+const sendContactFormConfirmation = async (to, name) => {
+    const mailOptions = {
+        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: 'We Received Your Message',
+        html: `
+      <p>Hi ${name},</p>
+      <p>Thank you for contacting Gudnet! We've received your message and our team will get back to you soon.</p>
+      <p>Here's a summary of your inquiry:</p>
+      <p><strong>We'll review your message and respond within 24-48 hours.</strong></p>
+      <p>If your matter is urgent, please call us at +852-55057015.</p>
+      <p>Best regards,<br/>Gudnet Team</p>
+    `
+    };
+    return transporter.sendMail(mailOptions);
+};
+
 const sendProfileRejectedEmail = async (to, firstName) => {
     const mailOptions = {
         from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
@@ -660,5 +679,6 @@ module.exports = {
     sendSubscriptionPlanChangeEmail,
     sendPlanUpgradeEmailToJobSeeker,
     sendWhatsappNumberReminder,
+    sendContactFormConfirmation,
     sendCustomEmail
 };
