@@ -10,6 +10,10 @@ const db = require('./db');
 
 const port = 5000;
 
+
+
+
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -18,6 +22,8 @@ app.use(express.json());
 app.use('/images', express.static('images'));
 app.use('/videos', express.static('videos'));
 app.use('/templates', express.static(path.join(__dirname, 'templates')));
+
+app.use('/uploads', express.static('uploads'));
 
 // Routes
 const userRoutes = require('./routes/userRoutes');
@@ -44,8 +50,8 @@ app.use("/api/", employerRoutes);
 app.use("/", applyRoutes);
 app.use("/", mailRoutes);
 app.use("/", SupportRoutes);
-app.use("/", Tips);
-app.use("/", News);
+app.use("/api", Tips);
+app.use("/api", News);
 app.use("/api/", job_reportRoutes);
 app.use("/api/", candidate_reportRoutes);
 app.use("/api/", Jobpositionroutes);
