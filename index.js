@@ -50,7 +50,7 @@ app.use("/api/", employerRoutes);
 app.use("/", applyRoutes);
 app.use("/", mailRoutes);
 app.use("/", SupportRoutes);
-app.use("/", Tips);
+app.use("/api", Tips);
 app.use("/api", News);
 app.use("/api/", job_reportRoutes);
 app.use("/api/", candidate_reportRoutes);

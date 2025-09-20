@@ -1,3 +1,4 @@
+// routes/NewsRoutes.js
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
@@ -10,14 +11,12 @@ const fs = require('fs');
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadDir = 'uploads/';
-    // Create uploads directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
-    // Generate unique filename with timestamp
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
@@ -26,7 +25,6 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage: storage,
   fileFilter: function (req, file, cb) {
-    // Check if file is an image
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -34,18 +32,17 @@ const upload = multer({
     }
   },
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 5 * 1024 * 1024
   }
 });
 
-// Add this route to your existing routes
+// Upload image endpoint
 router.post('/upload', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
     }
     
-    // Construct the URL for the uploaded image
     const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
     
     res.status(200).json({
@@ -110,9 +107,8 @@ router.post('/news', async (req, res) => {
     tags
   } = req.body;
 
-  // Basic validation
   if (!title || !category || !publish_date || !excerpt || !content) {
-    return res.status(400).json({ error: 'Missing required fields: title, category, publish_date, excerpt, and content are required' });
+    return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
@@ -148,21 +144,7 @@ router.post('/news', async (req, res) => {
 
     res.status(201).json({
       id: result.insertId,
-      message: 'News article created successfully',
-      article: {
-        id: result.insertId,
-        title,
-        category,
-        publish_date,
-        read_time: read_time || '5 min read',
-        excerpt,
-        content,
-        image_url,
-        status: status || 'draft',
-        slug,
-        meta_description,
-        tags
-      }
+      message: 'News article created successfully'
     });
 
   } catch (err) {
@@ -189,7 +171,6 @@ router.put('/news/:id', async (req, res) => {
   } = req.body;
 
   try {
-    // First check if the news article exists
     const [checkResults] = await db.query('SELECT * FROM news WHERE id = ?', [id]);
     if (checkResults.length === 0) {
       return res.status(404).json({ message: 'News article not found' });
@@ -237,7 +218,6 @@ router.put('/news/:id', async (req, res) => {
 router.delete('/news/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    // First check if the news article exists
     const [checkResults] = await db.query('SELECT * FROM news WHERE id = ?', [id]);
     if (checkResults.length === 0) {
       return res.status(404).json({ message: 'News article not found' });
@@ -250,14 +230,17 @@ router.delete('/news/:id', async (req, res) => {
   }
 });
 
-// Get published news only
+// Get published news only - FIXED ENDPOINT
 router.get('/news/published/all', async (req, res) => {
   try {
+    console.log('Fetching published news...');
     const [results] = await db.query(
       'SELECT * FROM news WHERE status = "published" ORDER BY publish_date DESC, created_at DESC'
     );
+    console.log('Published news results:', results);
     res.json(results);
   } catch (err) {
+    console.error('Error fetching published news:', err);
     res.status(500).json({ error: err.message });
   }
 });
