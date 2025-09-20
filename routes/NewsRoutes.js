@@ -3,9 +3,9 @@ const router = express.Router();
 const db = require('../db');
 
 // Get all news articles
-router.get('/news', async (req, res) => {
+router.get('/news/all', async (req, res) => {
   try {
-    const [results] = await db.query('SELECT * FROM news ORDER BY publish_date DESC, created_at DESC');
+    const [results] = await db.query('SELECT * FROM news');
     res.json(results);
   } catch (err) {
     res.status(500).json({ error: err.message });
