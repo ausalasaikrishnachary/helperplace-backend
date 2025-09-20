@@ -60,7 +60,6 @@ router.post('/tips', async (req, res) => {
     content,
     excerpt,
     section,
-    image_url,
     status,
     slug,
     meta_description,
@@ -80,12 +79,11 @@ router.post('/tips', async (req, res) => {
         content,
         excerpt,
         section,
-        image_url,
         status,
         slug,
         meta_description,
         tags
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const [result] = await db.query(query, [
@@ -94,7 +92,6 @@ router.post('/tips', async (req, res) => {
       content,
       excerpt,
       section,
-      image_url,
       status || 'draft',
       slug,
       meta_description,
@@ -111,7 +108,6 @@ router.post('/tips', async (req, res) => {
         content,
         excerpt,
         section,
-        image_url,
         status: status || 'draft',
         slug,
         meta_description,
@@ -134,7 +130,6 @@ router.put('/tips/:id', async (req, res) => {
     content,
     excerpt,
     section,
-    image_url,
     status,
     slug,
     meta_description,
@@ -155,7 +150,6 @@ router.put('/tips/:id', async (req, res) => {
         content = ?,
         excerpt = ?,
         section = ?,
-        image_url = ?,
         status = ?,
         slug = ?,
         meta_description = ?,
@@ -170,7 +164,6 @@ router.put('/tips/:id', async (req, res) => {
       content,
       excerpt,
       section,
-      image_url,
       status,
       slug,
       meta_description,
