@@ -42,6 +42,7 @@ const paynowroutes = require('./routes/paymentRoutes');
 const SupportRoutes = require('./routes/SupportRoutes');
 const Tips = require('./routes/TipsRoutes');
 const News = require('./routes/NewsRoutes');
+const trainingRoutes = require('./routes/trainingRoutes');
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
@@ -59,6 +60,7 @@ app.use("/api/", Subscriptionplanroutes);
 app.use("/api/", AgencySubscriptionplansRoutes);
 app.use('/', forgotpassword);
 app.use('/api', paynowroutes);
+app.use("/", trainingRoutes);
 require('./routes/inactivityChecker');
 
 // Schedule daily subscription reminder at 1:30 PM IST (08:00 AM UTC)

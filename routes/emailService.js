@@ -256,6 +256,38 @@ const sendContactFormConfirmation = async (to, name) => {
     return transporter.sendMail(mailOptions);
 };
 
+// Send admin response email to user
+const sendAdminResponseEmail = async (to, userName, userMessage, adminResponse, ticketId) => {
+    const mailOptions = {
+        from: `"Gudnet Support Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: `Response to Your Support Ticket #${ticketId}`,
+        html: `
+      <p>Hi ${userName},</p>
+      <p>Thank you for contacting Gudnet support. Here is our response to your inquiry:</p>
+      
+      <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
+        <p><strong>Your original message:</strong></p>
+        <p>${userMessage}</p>
+      </div>
+      
+      <div style="background-color: #e8f5e8; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0;">
+        <p><strong>Admin Response:</strong></p>
+        <p>${adminResponse}</p>
+      </div>
+      
+      <p>If you have any further questions, please reply to this email or contact us at +852-55057015.</p>
+      <p>Best regards,<br/>Gudnet Support Team</p>
+      
+      <p style="font-size: 12px; color: #6c757d; margin-top: 20px;">
+        This is an automated response to your support ticket #${ticketId}. 
+        Please do not reply to this email directly.
+      </p>
+    `
+    };
+    return transporter.sendMail(mailOptions);
+};
+
 const sendProfileRejectedEmail = async (to, firstName) => {
     const mailOptions = {
         from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
@@ -680,5 +712,6 @@ module.exports = {
     sendPlanUpgradeEmailToJobSeeker,
     sendWhatsappNumberReminder,
     sendContactFormConfirmation,
+    sendAdminResponseEmail,
     sendCustomEmail
 };

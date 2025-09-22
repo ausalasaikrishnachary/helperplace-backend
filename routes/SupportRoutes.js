@@ -92,6 +92,7 @@ router.post('/supporttickets', async (req, res) => {
 });
 
 // Update support ticket
+// Update support ticket
 router.put('/supporttickets/:id', async (req, res) => {
   const { id } = req.params;
   const {
@@ -111,6 +112,8 @@ router.put('/supporttickets/:id', async (req, res) => {
       return res.status(404).json({ message: 'Support ticket not found' });
     }
 
+    const oldTicket = checkResults[0];
+    
     const query = `
       UPDATE support_tickets SET 
         name = ?,
@@ -134,6 +137,24 @@ router.put('/supporttickets/:id', async (req, res) => {
       admin_notes,
       id
     ]);
+
+    // Send email to user if admin_notes was added or updated
+    if (admin_notes && admin_notes !== oldTicket.admin_notes) {
+      try {
+        const emailService = require('./emailService');
+        await emailService.sendAdminResponseEmail(
+          email,
+          name,
+          message,
+          admin_notes,
+          id
+        );
+        console.log(`Admin response email sent to ${email}`);
+      } catch (emailError) {
+        console.error('Error sending admin response email:', emailError);
+        // Don't fail the request if email fails
+      }
+    }
 
     res.json({ message: 'Support ticket updated successfully' });
   } catch (err) {
