@@ -1,4 +1,3 @@
-// routes/TrainingRoutes.js
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
@@ -32,11 +31,11 @@ const upload = multer({
     }
   },
   limits: {
-    fileSize: 5 * 1024 * 1024
+    fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
 
-// Upload image endpoint
+// Upload image endpoint (optional - can be removed if not used elsewhere)
 router.post('/upload', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
@@ -77,15 +76,17 @@ router.get('/trainings/:id', async (req, res) => {
   }
 });
 
-// Create a new training
-router.post('/trainings', upload.single('profile_image'), async (req, res) => {
+// Create a new training - handle multiple image uploads
+router.post('/trainings', upload.fields([
+  { name: 'profile_image', maxCount: 1 },
+  { name: 'back_profile', maxCount: 1 }
+]), async (req, res) => {
   const {
     training_title,
     location,
     rating,
-    description,
-    our_services,
-    back_profile
+    description, 
+    our_services
   } = req.body;
 
   if (!training_title || !location) {
@@ -94,8 +95,16 @@ router.post('/trainings', upload.single('profile_image'), async (req, res) => {
 
   try {
     let profile_image_url = null;
-    if (req.file) {
-      profile_image_url = `${req.protocol}://${req.get('host')}/uploads/trainings/${req.file.filename}`;
+    let back_profile_url = null;
+    
+    // Process profile image
+    if (req.files && req.files['profile_image']) {
+      profile_image_url = `${req.protocol}://${req.get('host')}/uploads/trainings/${req.files['profile_image'][0].filename}`;
+    }
+    
+    // Process back profile image
+    if (req.files && req.files['back_profile']) {
+      back_profile_url = `${req.protocol}://${req.get('host')}/uploads/trainings/${req.files['back_profile'][0].filename}`;
     }
 
     const query = `
@@ -105,8 +114,8 @@ router.post('/trainings', upload.single('profile_image'), async (req, res) => {
         rating,
         description,
         our_services,
-        back_profile,
-        profile_image
+        profile_image,
+        back_profile
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
     
@@ -116,8 +125,8 @@ router.post('/trainings', upload.single('profile_image'), async (req, res) => {
       rating || 0.00,
       description,
       our_services,
-      back_profile,
-      profile_image_url
+      profile_image_url,
+      back_profile_url
     ]);
 
     res.status(201).json({
@@ -131,16 +140,18 @@ router.post('/trainings', upload.single('profile_image'), async (req, res) => {
   }
 });
 
-// Update training
-router.put('/trainings/:id', upload.single('profile_image'), async (req, res) => {
+// Update training - handle multiple image uploads
+router.put('/trainings/:id', upload.fields([
+  { name: 'profile_image', maxCount: 1 },
+  { name: 'back_profile', maxCount: 1 }
+]), async (req, res) => {
   const { id } = req.params;
   const {
     training_title,
     location,
     rating,
     description,
-    our_services,
-    back_profile
+    our_services
   } = req.body;
 
   try {
@@ -150,15 +161,33 @@ router.put('/trainings/:id', upload.single('profile_image'), async (req, res) =>
     }
 
     let profile_image_url = checkResults[0].profile_image;
-    if (req.file) {
-      profile_image_url = `${req.protocol}://${req.get('host')}/uploads/trainings/${req.file.filename}`;
+    let back_profile_url = checkResults[0].back_profile;
+    
+    // Process profile image update
+    if (req.files && req.files['profile_image']) {
+      profile_image_url = `${req.protocol}://${req.get('host')}/uploads/trainings/${req.files['profile_image'][0].filename}`;
       
-      // Delete old image if exists
+      // Delete old profile image if exists
       if (checkResults[0].profile_image) {
         const oldImagePath = checkResults[0].profile_image.split('/uploads/trainings/')[1];
         if (oldImagePath) {
           fs.unlink(`uploads/trainings/${oldImagePath}`, (err) => {
-            if (err) console.error('Error deleting old image:', err);
+            if (err) console.error('Error deleting old profile image:', err);
+          });
+        }
+      }
+    }
+    
+    // Process back profile image update
+    if (req.files && req.files['back_profile']) {
+      back_profile_url = `${req.protocol}://${req.get('host')}/uploads/trainings/${req.files['back_profile'][0].filename}`;
+      
+      // Delete old back profile image if exists
+      if (checkResults[0].back_profile) {
+        const oldImagePath = checkResults[0].back_profile.split('/uploads/trainings/')[1];
+        if (oldImagePath) {
+          fs.unlink(`uploads/trainings/${oldImagePath}`, (err) => {
+            if (err) console.error('Error deleting old back profile image:', err);
           });
         }
       }
@@ -171,8 +200,8 @@ router.put('/trainings/:id', upload.single('profile_image'), async (req, res) =>
         rating = ?,
         description = ?,
         our_services = ?,
-        back_profile = ?,
         profile_image = ?,
+        back_profile = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
@@ -183,8 +212,8 @@ router.put('/trainings/:id', upload.single('profile_image'), async (req, res) =>
       rating,
       description,
       our_services,
-      back_profile,
       profile_image_url,
+      back_profile_url,
       id
     ]);
 
@@ -203,12 +232,22 @@ router.delete('/trainings/:id', async (req, res) => {
       return res.status(404).json({ message: 'Training not found' });
     }
 
-    // Delete associated image file if exists
+    // Delete associated profile image file if exists
     if (checkResults[0].profile_image) {
       const imagePath = checkResults[0].profile_image.split('/uploads/trainings/')[1];
       if (imagePath) {
         fs.unlink(`uploads/trainings/${imagePath}`, (err) => {
-          if (err) console.error('Error deleting image:', err);
+          if (err) console.error('Error deleting profile image:', err);
+        });
+      }
+    }
+    
+    // Delete associated back profile image file if exists
+    if (checkResults[0].back_profile) {
+      const imagePath = checkResults[0].back_profile.split('/uploads/trainings/')[1];
+      if (imagePath) {
+        fs.unlink(`uploads/trainings/${imagePath}`, (err) => {
+          if (err) console.error('Error deleting back profile image:', err);
         });
       }
     }
