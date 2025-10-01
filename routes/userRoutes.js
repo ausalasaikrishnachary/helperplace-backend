@@ -238,7 +238,10 @@ router.post('/login', async (req, res) => {
           role: user.role,
           is_verified: user.is_verified,
           created_at: user.created_at,
-          user_type: 'general' 
+          user_type: 'general' ,
+          plan_name:user.plan_name,
+          plan_startdate: user.plan_startdate,
+          plan_enddate: user.plan_enddate
         }
       });
     }
