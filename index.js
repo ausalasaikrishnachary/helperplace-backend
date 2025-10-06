@@ -43,6 +43,7 @@ const SupportRoutes = require('./routes/SupportRoutes');
 const Tips = require('./routes/TipsRoutes');
 const News = require('./routes/NewsRoutes');
 const trainingRoutes = require('./routes/trainingRoutes');
+const shortListRoutes = require('./routes/shortListRoutes');
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
@@ -61,11 +62,12 @@ app.use("/api/", AgencySubscriptionplansRoutes);
 app.use('/', forgotpassword);
 app.use('/api', paynowroutes);
 app.use("/", trainingRoutes);
+app.use("/", shortListRoutes);
 require('./routes/inactivityChecker');
 
 // Schedule daily subscription reminder at 1:30 PM IST (08:00 AM UTC)
 // ✅ Schedule daily subscription reminder at 1:30 PM IST
-cron.schedule('53 12 * * *', async () => {
+cron.schedule('19 14 * * *', async () => {
   console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
   try {
     const result = await emailService.checkAndSendSubscriptionReminders(db);

@@ -311,23 +311,34 @@ const sendIncompleteProfileReminder = async (to, firstName, completionPercentage
         return false;
     }
 
-    const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
-        to,
-        subject: 'Complete Your Profile to Get More Visibility',
-        html: `
-      <p>Hi ${firstName},</p>
-      <p>We noticed your profile is only ${completionPercentage}% complete!</p>
-      <p>Complete your profile to:</p>
-      <ul>
-        <li>Increase your visibility to potential candidates</li>
-        <li>Get better matches for your job requirements</li>
-        <li>Access all platform features</li>
-      </ul>
-      <p>Log in now to complete the remaining sections and get the most out of Gudnet.</p>
-      <p>Best regards,<br/>Gudnet Team</p>
-    `
-    };
+const mailOptions = {
+  from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+  to,
+  subject: 'Complete Your Profile to Get More Visibility',
+  html: `
+    <p>Hi ${firstName},</p>
+    <p>We noticed your profile is only ${completionPercentage}% complete!</p>
+    <p>Complete your profile to:</p>
+    <ul>
+      <li>Increase your visibility to potential candidates</li>
+      <li>Get better matches for your job requirements</li>
+      <li>Access all platform features</li>
+    </ul>
+    <p>
+      <a href="https://gulfworker.net/" 
+         style="display:inline-block; padding:10px 20px; margin:10px 0; 
+                background-color:#0d6efd; color:#fff; text-decoration:none; 
+                border-radius:5px; font-weight:bold;">
+        Complete My Profile
+      </a>
+    </p>
+    <p>Or you can copy and paste this link in your browser:<br/>
+      <a href="https://gulfworker.net/">https://gulfworker.net/</a>
+    </p>
+    <p>Best regards,<br/>Gudnet Team</p>
+  `
+};
+
     return transporter.sendMail(mailOptions);
 };
 
