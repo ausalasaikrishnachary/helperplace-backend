@@ -10,9 +10,9 @@ const { sendProfileRejectedEmail } = require('./emailService');
 const otpStore = new Map();
 
 // Generate random 6-digit OTP
-const generateOtp = () => {
-  return crypto.randomInt(100000, 999999).toString();
-};
+// const generateOtp = () => {
+//   return crypto.randomInt(100000, 999999).toString();
+// };
 
 // Get all users
 router.get('/', async (req, res) => {
@@ -35,6 +35,11 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Generate 4-digit OTP
+function generateOtp() {
+  return Math.floor(1000 + Math.random() * 9000).toString(); // Generates 4-digit OTP
+}
 
 // Send OTP for registration
 router.post('/send-reg-otp', async (req, res) => {
