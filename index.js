@@ -8,7 +8,7 @@ const emailService = require('./routes/emailService');
 const db = require('./db');
 
 
-const port = 5001;
+const port = 5000;
 
 
 
@@ -67,7 +67,7 @@ require('./routes/inactivityChecker');
 
 // Schedule daily subscription reminder at 1:30 PM IST (08:00 AM UTC)
 // ✅ Schedule daily subscription reminder at 1:30 PM IST
-cron.schedule('19 14 * * *', async () => {
+cron.schedule('47 14 * * *', async () => {
   console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
   try {
     const result = await emailService.checkAndSendSubscriptionReminders(db);

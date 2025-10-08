@@ -15,13 +15,13 @@ function getNextUpgradePlan(currentPlan) {
 // 1️⃣ Thanks for joining email
 const sendThanksEmail = async (to, firstName) => {
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Thanks for joining Gudnet!',
         html: `
       <p>Hi ${firstName},</p>
       <p>Thank you for registering with <strong>Gudnet</strong>. We're glad to have you onboard!</p>
-      <p>Warm regards,<br/>Gudnet Team</p>
+      <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -54,7 +54,7 @@ const sendWelcomeEmail = async (to, firstName, lastName, role = 'employer') => {
     }
 
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Welcome to Gudnet!',
         html: htmlContent
@@ -66,7 +66,7 @@ const sendWelcomeEmail = async (to, firstName, lastName, role = 'employer') => {
 // 3️⃣ OTP Verification Email
 const sendOtpEmail = async (to, otp) => {
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Your Verification Code',
         html: `
@@ -75,7 +75,7 @@ const sendOtpEmail = async (to, otp) => {
       <h2 style="margin: 20px 0; color: #2563eb; font-size: 28px;">${otp}</h2>
       <p>This code will expire in 10 minutes.</p>
       <p>If you didn't request this code, please ignore this email.</p>
-      <p>Best regards,<br/>Gudnet Team</p>
+      <p>Best regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -85,14 +85,14 @@ const sendOtpEmail = async (to, otp) => {
 const sendSubscriptionExpiryReminder = async (to, firstName, endDate) => {
     const formattedDate = new Date(endDate).toLocaleDateString();
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Your Subscription is About to Expire',
         html: `
       <p>Hi ${firstName},</p>
       <p>Your Gudnet subscription will expire in one week (on ${formattedDate}).</p>
       <p>To continue enjoying uninterrupted service, please renew your subscription.</p>
-      <p>Warm regards,<br/>Gudnet Team</p>
+      <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -101,14 +101,14 @@ const sendSubscriptionExpiryReminder = async (to, firstName, endDate) => {
 // 5️⃣ Subscription Expired Notification
 const sendSubscriptionExpiredNotification = async (to, firstName) => {
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Your Subscription Has Expired',
         html: `
       <p>Hi ${firstName},</p>
       <p>Your Gudnet subscription has now expired.</p>
       <p>To continue using our services, please renew your subscription at your earliest convenience.</p>
-      <p>Warm regards,<br/>Gudnet Team</p>
+      <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -117,14 +117,14 @@ const sendSubscriptionExpiredNotification = async (to, firstName) => {
 // 6️⃣ Job Posting Expired Notification (sent when subscription expires)
 const sendJobpostingexpiredNotification = async (to, firstName) => {
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Your Job Postings Have Been Deactivated',
         html: `
       <p>Hi ${firstName},</p>
       <p>Due to your subscription expiration, all your active job postings have been temporarily deactivated.</p>
       <p>To reactivate your job postings and continue receiving applications, please renew your subscription.</p>
-      <p>Warm regards,<br/>Gudnet Team</p>
+      <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -134,14 +134,14 @@ const sendJobpostingexpiredNotification = async (to, firstName) => {
 const sendFreeTrialEndingReminder = async (to, firstName, endDate) => {
     const formattedDate = new Date(endDate).toLocaleDateString();
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Your Free Trial is Ending Soon',
         html: `
       <p>Hi ${firstName},</p>
       <p>Your Gudnet free trial will end tomorrow (on ${formattedDate}).</p>
       <p>Upgrade to a premium plan to continue posting jobs and accessing all features.</p>
-      <p>Warm regards,<br/>Gudnet Team</p>
+      <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -151,7 +151,7 @@ const sendFreeTrialEndingReminder = async (to, firstName, endDate) => {
 const sendSubscriptionRenewalConfirmation = async (to, firstName, planName, endDate) => {
     const formattedDate = new Date(endDate).toLocaleDateString();
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Subscription Renewal Confirmation',
         html: `
@@ -159,7 +159,7 @@ const sendSubscriptionRenewalConfirmation = async (to, firstName, planName, endD
       <p>Your Gudnet subscription (${planName}) has been successfully renewed!</p>
       <p>Your new subscription end date is ${formattedDate}.</p>
       <p>Thank you for continuing with us.</p>
-      <p>Warm regards,<br/>Gudnet Team</p>
+      <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -195,7 +195,7 @@ const sendPlanUpgradeSuggestion = async (to, firstName, currentPlan, endDate) =>
     }
 
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: `Upgrade to ${suggestedPlan} Plan - More Power to You!`,
         html: `
@@ -206,7 +206,7 @@ const sendPlanUpgradeSuggestion = async (to, firstName, currentPlan, endDate) =>
                 ${benefits.map(b => `<li>${b}</li>`).join('')}
             </ul>
             <p>Upgrade now to keep your hiring uninterrupted and effective!</p>
-            <p>Best Regards,<br/>Gudnet Team</p>
+            <p>Best Regards,<br/>Gulf Hepler Team</p>
         `
     };
 
@@ -216,7 +216,7 @@ const sendPlanUpgradeSuggestion = async (to, firstName, currentPlan, endDate) =>
 // 🔟 Low Views Reminder
 const sendLowViewsReminder = async (to, firstName, jobTitle, viewCount) => {
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: `Boost Your Job Post: "${jobTitle}" Only Has ${viewCount} Views`,
         html: `
@@ -231,7 +231,7 @@ const sendLowViewsReminder = async (to, firstName, jobTitle, viewCount) => {
       </ul>
       <p>You can edit your posting anytime to improve its performance.</p>
       <p>Need help? Reply to this email and our team will assist you.</p>
-      <p>Best regards,<br/>Gudnet Team</p>
+      <p>Best regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -241,7 +241,7 @@ const sendLowViewsReminder = async (to, firstName, jobTitle, viewCount) => {
 // 🔟 Contact Form Confirmation Email
 const sendContactFormConfirmation = async (to, name) => {
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'We Received Your Message',
         html: `
@@ -250,7 +250,7 @@ const sendContactFormConfirmation = async (to, name) => {
       <p>Here's a summary of your inquiry:</p>
       <p><strong>We'll review your message and respond within 24-48 hours.</strong></p>
       <p>If your matter is urgent, please call us at +852-55057015.</p>
-      <p>Best regards,<br/>Gudnet Team</p>
+      <p>Best regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -290,7 +290,7 @@ const sendAdminResponseEmail = async (to, userName, userMessage, adminResponse, 
 
 const sendProfileRejectedEmail = async (to, firstName) => {
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Your Profile Has Been Rejected',
         html: `
@@ -298,7 +298,7 @@ const sendProfileRejectedEmail = async (to, firstName) => {
       <p>We regret to inform you that your profile on Gudnet has been rejected and removed from our platform.</p>
       <p>This decision was made after careful review by our team.</p>
       <p>If you believe this was a mistake or would like more information, please reply to this email.</p>
-      <p>Best regards,<br/>Gudnet Team</p>
+      <p>Best regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -312,7 +312,7 @@ const sendIncompleteProfileReminder = async (to, firstName, completionPercentage
     }
 
 const mailOptions = {
-  from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+  from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
   to,
   subject: 'Complete Your Profile to Get More Visibility',
   html: `
@@ -335,7 +335,7 @@ const mailOptions = {
     <p>Or you can copy and paste this link in your browser:<br/>
       <a href="https://gulfworker.net/">https://gulfworker.net/</a>
     </p>
-    <p>Best regards,<br/>Gudnet Team</p>
+    <p>Best regards,<br/>Gulf Hepler Team</p>
   `
 };
 
@@ -355,7 +355,7 @@ const sendPlanUpgradeEmailToJobSeeker = async (to, firstName, currentPlan, endDa
     const formattedDate = new Date(endDate).toLocaleDateString();
 
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: `Upgrade to ${nextPlan} - Get More Benefits!`,
         html: `
@@ -369,7 +369,7 @@ const sendPlanUpgradeEmailToJobSeeker = async (to, firstName, currentPlan, endDa
         <li>Longer subscription period</li>
       </ul>
       <p>Upgrade now to continue your job search without interruption!</p>
-      <p>Best Regards,<br/>Gudnet Team</p>
+      <p>Best Regards,<br/>Gulf Hepler Team</p>
     `
     };
 
@@ -616,14 +616,14 @@ const checkAndSendSubscriptionReminders = async (db) => {
 
 const sendInactivityNotification = async (to, firstName, daysInactive) => {
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: `We Miss You! It's Been ${daysInactive} Days`,
         html: `
       <p>Hi ${firstName},</p>
       <p>We noticed you haven't logged in to Gudnet for ${daysInactive} days.</p>
       <p>We miss having you around! Log in now to check out new updates and opportunities.</p>
-      <p>Warm regards,<br/>Gudnet Team</p>
+      <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -631,7 +631,7 @@ const sendInactivityNotification = async (to, firstName, daysInactive) => {
 
 const sendProfileVerifiedEmail = async (to, firstName) => {
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Your Profile Has Been Verified!',
         html: `
@@ -639,7 +639,7 @@ const sendProfileVerifiedEmail = async (to, firstName) => {
       <p>We're pleased to inform you that your profile on Gudnet has been verified by our team!</p>
       <p>This verification badge will make your profile more visible to employers and increase your chances of getting hired.</p>
       <p>Log in to your account to see your verified status and explore new job opportunities.</p>
-      <p>Best regards,<br/>Gudnet Team</p>
+      <p>Best regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -648,7 +648,7 @@ const sendProfileVerifiedEmail = async (to, firstName) => {
 const sendSubscriptionPlanChangeEmail = async (to, firstName, oldPlan, newPlan, endDate) => {
     const formattedDate = new Date(endDate).toLocaleDateString();
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Subscription Plan Change Confirmation',
         html: `
@@ -656,7 +656,7 @@ const sendSubscriptionPlanChangeEmail = async (to, firstName, oldPlan, newPlan, 
       <p>Your Gudnet subscription has been successfully changed from <strong>${oldPlan}</strong> to <strong>${newPlan}</strong>!</p>
       <p>Your new subscription end date is ${formattedDate}.</p>
       <p>Thank you for choosing a higher plan with us.</p>
-      <p>Warm regards,<br/>Gudnet Team</p>
+      <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -664,7 +664,7 @@ const sendSubscriptionPlanChangeEmail = async (to, firstName, oldPlan, newPlan, 
 
 const sendWhatsappNumberReminder = async (to, firstName) => {
     const mailOptions = {
-        from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Please Update Your WhatsApp Number',
         html: `
@@ -672,7 +672,7 @@ const sendWhatsappNumberReminder = async (to, firstName) => {
       <p>We noticed that you haven't provided your WhatsApp number in your Gudnet profile.</p>
       <p>Adding your WhatsApp number will help us send you important updates and notifications directly.</p>
       <p>Please log in to your account and update your profile with your WhatsApp number at your earliest convenience.</p>
-      <p>Best regards,<br/>Gudnet Team</p>
+      <p>Best regards,<br/>Gulf Hepler Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -686,7 +686,7 @@ const sendCustomEmail = async (to_email, subject, message) => {
 
     try {
         const mailOptions = {
-            from: `"Gudnet Team" <${ADMIN_EMAIL}>`,
+            from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
             to: to_email,
             subject: subject,
             text: message,
