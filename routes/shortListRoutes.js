@@ -200,4 +200,34 @@ router.get('/shortlist/employer/:employer_id', async (req, res) => {
   }
 });
 
+
+// Get all shortlist entries with employer details (for admin/manage page)
+router.get('/shortlist-with-details/all', async (req, res) => {
+  try {
+    const [results] = await db.query(`
+      SELECT 
+        s.*,
+        e.emp_name,
+        e.job_title,
+        e.domestic_worker_category,
+        e.job_type,
+        e.working_city,
+        e.state_or_province,
+        e.minimum_monthly_salary,
+        e.maximum_monthly_salary,
+        e.nationality,
+        e.gender,
+        e.education_level,
+        e.profile_photo_url
+      FROM shortlist s
+      LEFT JOIN employer e ON s.employer_id = e.user_id
+      ORDER BY s.created_at DESC
+    `);
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 module.exports = router;

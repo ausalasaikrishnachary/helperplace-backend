@@ -554,6 +554,31 @@ router.get("/employer/:id", async (req, res) => {
   }
 });
 
+
+// GET employer data by user_id (for shortlist details)
+router.get("/employer/user/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+
+  if (!user_id) {
+    return res.status(400).json({ message: "user_id is required" });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT * FROM employer WHERE user_id = ?`,
+      [user_id]
+    );
+    if (rows.length > 0) {
+      res.json(rows[0]); // Return first record instead of array
+    } else {
+      res.status(404).json({ message: "No employer data found for this user_id" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+
 // GET - Latest temporary_id
 router.get("/employer/get/latest-temporary-id", async (req, res) => {
   try {
