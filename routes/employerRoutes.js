@@ -133,7 +133,7 @@ const employerFields = [
   'total_experience_years', 'candidates_country_experience', 'preferred_candidates_country',
   'preferred_language_for_worker', 'locaion_preference', 'most_important_skill', 'main_skills',
   'cooking_skills', 'other_skills', 'gender', 'religion', 'education_level', 'age', 'working_city',
-  'state_or_province', 'name', 'email_id', 'whatsapp_number_country_code', 'whatsapp_number',
+  'state_or_province', 'name', 'contact_source', 'email_id', 'whatsapp_number_country_code', 'whatsapp_number',
   'phone_number_country_code', 'phone_number', 'nationality', 'organization_name',
   'offer_for_selected_candidates', 'country_currency', 'minimum_monthly_salary', 'maximum_monthly_salary',
   'negotiable', 'adults', 'children', 'type_of_house', 'rooms', 'bathrooms', 'have_pets',
