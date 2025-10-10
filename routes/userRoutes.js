@@ -243,7 +243,7 @@ router.post('/login', async (req, res) => {
           role: user.role,
           is_verified: user.is_verified,
           created_at: user.created_at,
-          user_type: 'general' ,
+          user_type: user.role,
           plan_name:user.plan_name,
           plan_startdate: user.plan_startdate,
           plan_enddate: user.plan_enddate
@@ -277,7 +277,7 @@ router.post('/login', async (req, res) => {
           role: agencyUser.role,
           is_verified: agencyUser.is_verified,
           created_at: agencyUser.created_at,
-          user_type: 'agency'
+          user_type: agencyUser.role,
         }
       });
     }
