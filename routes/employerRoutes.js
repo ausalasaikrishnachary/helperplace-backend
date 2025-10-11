@@ -778,4 +778,55 @@ router.put('/subscription/users/:id', async (req, res) => {
 });
 
 
+router.put('/subscription/agency_user/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const {
+      subscription_plan_id,
+      subscription,
+      plan_name,
+      plan_days,
+      plan_startdate,
+      plan_enddate,
+      payment_status,
+      payment_amount
+    } = req.body;
+
+    // ✅ Update query
+    const [result] = await db.query(
+      `UPDATE agency_user 
+       SET subscription_plan_id = ?, 
+       subscription = ?,
+           plan_name = ?, 
+           plan_days = ?, 
+           plan_startdate = ?, 
+           plan_enddate = ?, 
+           payment_status = ?, 
+           payment_amount = ? 
+       WHERE id = ?`,
+      [
+        subscription_plan_id,
+        subscription,
+        plan_name,
+        plan_days,
+        plan_startdate,
+        plan_enddate,
+        payment_status,
+        payment_amount,
+        userId
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, message: "Subscription details updated successfully" });
+  } catch (error) {
+    console.error("Error updating subscription:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+
 module.exports = router;

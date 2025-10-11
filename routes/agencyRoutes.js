@@ -155,4 +155,63 @@ router.delete('/agency/:id', async (req, res) => {
 });
 
 
+router.put('/candidatesubscription/agency_user/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const {
+      candidate_subscription_plan_id,
+      candidate_subscription,
+      candidate_plan_name,
+      candidate_plan_days,
+      candidate_plan_startdate,
+      candidate_plan_enddate,
+      candidate_payment_status,
+      candidate_payment_amount,
+      candidate_posting,
+      candidate_contact
+    } = req.body;
+
+    // ✅ Update query for candidate-specific fields
+    const [result] = await db.query(
+      `UPDATE agency_user 
+       SET 
+         candidate_subscription_plan_id = ?, 
+         candidate_subscription = ?, 
+         candidate_plan_name = ?, 
+         candidate_plan_days = ?, 
+         candidate_plan_startdate = ?, 
+         candidate_plan_enddate = ?, 
+         candidate_payment_status = ?, 
+         candidate_payment_amount = ?, 
+         candidate_posting = ?, 
+         candidate_contact = ?
+       WHERE id = ?`,
+      [
+        candidate_subscription_plan_id,
+        candidate_subscription,
+        candidate_plan_name,
+        candidate_plan_days,
+        candidate_plan_startdate,
+        candidate_plan_enddate,
+        candidate_payment_status,
+        candidate_payment_amount,
+        candidate_posting,
+        candidate_contact,
+        userId
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, message: "Candidate subscription details updated successfully" });
+  } catch (error) {
+    console.error("Error updating candidate subscription:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+
+
 module.exports = router;
