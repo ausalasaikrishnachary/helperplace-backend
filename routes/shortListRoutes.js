@@ -43,7 +43,7 @@ router.get('/shortlist/user/:user_id', async (req, res) => {
 
 // Create a new shortlist entry
 router.post('/shortlist', async (req, res) => {
-  const { user_id, employer_id, first_name, email_id, employer_source } = req.body;
+  const { user_id, employer_id, first_name, email_id, mobile_number, employer_source } = req.body;
 
   // Validation
   if (!user_id || !first_name || !email_id) {
@@ -70,11 +70,11 @@ router.post('/shortlist', async (req, res) => {
     }
 
     const query = `
-      INSERT INTO shortlist (user_id, employer_id, first_name, email_id, employer_source) 
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO shortlist (user_id, employer_id, first_name, email_id, mobile_number, employer_source) 
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
     
-    const [result] = await db.query(query, [user_id, employer_id, first_name, email_id, employer_source]);
+    const [result] = await db.query(query, [user_id, employer_id, first_name, email_id, mobile_number, employer_source]);
 
     // Get the newly created entry
     const [newEntry] = await db.query('SELECT * FROM shortlist WHERE id = ?', [result.insertId]);
@@ -127,11 +127,11 @@ router.put('/shortlist/:id', async (req, res) => {
 
     const query = `
       UPDATE shortlist 
-      SET user_id = ?, employer_id = ?, first_name = ?, email_id = ?, employer_source = ?, updated_at = CURRENT_TIMESTAMP 
+      SET user_id = ?, employer_id = ?, first_name = ?, email_id = ?, mobile_number = ?, employer_source = ?, updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?
     `;
     
-    await db.query(query, [user_id, employer_id, first_name, email_id, id, employer_source]);
+    await db.query(query, [user_id, employer_id, first_name, email_id, mobile_number, id, employer_source]);
 
     // Get the updated entry
     const [updatedEntry] = await db.query('SELECT * FROM shortlist WHERE id = ?', [id]);
