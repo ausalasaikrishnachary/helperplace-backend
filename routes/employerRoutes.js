@@ -127,20 +127,25 @@ router.get("/employer/check-subscriptions", async (req, res) => {
 
 // List of all possible fields for insert/update excluding id (auto increment)
 const employerFields = [
-  'user_id', 'temporary_id', 'emp_name', 'domestic_worker_category', 'job_type', 'job_title',
-  'job_description', 'job_starting_date', 'prefer_contract_status', 'looking_worker_for',
-  'candidate_experience', 'prefer_experience', 'preferred_years_of_experience', 'gulf_experience_years',
-  'total_experience_years', 'candidates_country_experience', 'preferred_candidates_country',
-  'preferred_language_for_worker', 'locaion_preference', 'most_important_skill', 'main_skills',
-  'cooking_skills', 'other_skills', 'gender', 'religion', 'education_level', 'age', 'working_city',
-  'state_or_province', 'name', 'contact_source', 'email_id', 'whatsapp_number_country_code', 'whatsapp_number',
-  'phone_number_country_code', 'phone_number', 'nationality', 'organization_name',
-  'offer_for_selected_candidates', 'country_currency', 'minimum_monthly_salary', 'maximum_monthly_salary',
-  'negotiable', 'adults', 'children', 'type_of_house', 'rooms', 'bathrooms', 'have_pets',
-  'worker_nationality', 'phone_country_code', 'location_preference', 'domestic_worker_name',
-  'have_domestic_worker', 'nationality_of_domestic_worker', 'status', 'subscription', 'plan_name',
-  'plan_days', 'plan_startdate', 'plan_enddate', 'posted_by', 'view_count', 'posted_on',
-  'profile_photo', 'offer', 'profile_photo_url', 'subscription_plan_id', 'columns_percentage'
+    'user_id', 'temporary_id', 'emp_name', 'domestic_worker_category', 'job_type', 
+    'job_title', 'job_description', 'job_starting_date', 'prefer_contract_status', 
+    'looking_worker_for', 'candidate_experience', 'prefer_experience', 
+    'preferred_years_of_experience', 'gulf_experience_years', 'total_experience_years', 
+    'candidates_country_experience', 'preferred_candidates_country', 
+    'preferred_language_for_worker', 'locaion_preference', 'most_important_skill', 
+    'main_skills', 'cooking_skills', 'other_skills', 'gender', 'religion', 
+    'education_level', 'age', 'working_city', 'state_or_province', 'country', 
+    'name', 'contact_source', 'email_id', 'whatsapp_number_country_code', 
+    'whatsapp_number', 'phone_number_country_code', 'phone_number', 'nationality', 
+    'organization_name', 'offer_for_selected_candidates', 'country_currency', 
+    'minimum_monthly_salary', 'maximum_monthly_salary', 'negotiable', 'adults', 
+    'children', 'type_of_house', 'rooms', 'bathrooms', 'have_pets', 'worker_nationality', 
+    'phone_country_code', 'location_preference', 'domestic_worker_name', 
+    'have_domestic_worker', 'nationality_of_domestic_worker', 'status', 'subscription', 
+    'plan_name', 'plan_days', 'plan_startdate', 'plan_enddate', 'payment_amount', 
+    'payment_status', 'posted_by', 'view_count', 'posted_on', 'profile_photo', 
+    'offer', 'profile_photo_url', 'subscription_plan_id', 'columns_percentage', 
+    'currency_name'
 ];
 
 // POST or UPDATE employer record with photo upload support
