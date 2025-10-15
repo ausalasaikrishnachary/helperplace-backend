@@ -63,18 +63,116 @@ const jsonFields = [
   'preferred_years_of_experience',
   'candidates_country_experience',
   'preferred_candidates_country',
+  'preferred_language_for_worker',
   'main_skills',
   'cooking_skills',
-  'other_skills'
+  'other_skills',
+  'offer_for_selected_candidates'
 ];
 
-function stringifyJsonFields(data) {
-  jsonFields.forEach(field => {
-    if (data[field] && typeof data[field] !== 'string') {
-      data[field] = JSON.stringify(data[field]);
+// Date conversion function for MySQL
+function convertToMySQLDateTime(dateValue) {
+  if (!dateValue) return null;
+  
+  try {
+    // If it's already in MySQL format, return as is
+    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateValue)) {
+      return dateValue;
+    }
+    
+    // If it's an ISO string or Date object, convert to MySQL format
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) {
+      return null; // Invalid date
+    }
+    
+    return date.toISOString().slice(0, 19).replace('T', ' ');
+  } catch (error) {
+    console.error('Error converting date:', error);
+    return null;
+  }
+}
+
+// Function to prepare data for MySQL, handling dates, JSON, and boolean values
+function prepareDataForMySQL(data) {
+  const preparedData = { ...data };
+  
+  // Handle date fields
+  const dateFields = [
+    'plan_startdate',
+    'plan_enddate', 
+    'posted_on',
+    'job_starting_date'
+  ];
+  
+  dateFields.forEach(field => {
+    if (preparedData[field] !== undefined && preparedData[field] !== null) {
+      preparedData[field] = convertToMySQLDateTime(preparedData[field]);
     }
   });
-  return data;
+  
+  // Handle JSON fields - ensure they are properly stringified
+  jsonFields.forEach(field => {
+    if (preparedData[field] !== undefined && preparedData[field] !== null) {
+      if (typeof preparedData[field] === 'string') {
+        try {
+          // If it's already a JSON string, ensure it's valid
+          JSON.parse(preparedData[field]);
+          // If it parses successfully, keep it as is
+        } catch (e) {
+          // If it's not valid JSON, wrap it in array and stringify
+          preparedData[field] = JSON.stringify([preparedData[field]]);
+        }
+      } else if (Array.isArray(preparedData[field])) {
+        // If it's an array, stringify it
+        preparedData[field] = JSON.stringify(preparedData[field]);
+      } else {
+        // For other types, stringify as array
+        preparedData[field] = JSON.stringify([preparedData[field]]);
+      }
+    }
+  });
+  
+  // Handle boolean fields
+  const booleanFields = ['negotiable', 'have_pets', 'have_domestic_worker'];
+  booleanFields.forEach(field => {
+    if (preparedData[field] !== undefined && preparedData[field] !== null) {
+      if (typeof preparedData[field] === 'boolean') {
+        preparedData[field] = preparedData[field] ? 1 : 0;
+      } else if (typeof preparedData[field] === 'string') {
+        preparedData[field] = preparedData[field] === 'true' || preparedData[field] === '1' ? 1 : 0;
+      } else if (typeof preparedData[field] === 'number') {
+        preparedData[field] = preparedData[field] ? 1 : 0;
+      }
+    }
+  });
+  
+  // Handle numeric fields
+  const numericFields = [
+    'gulf_experience_years', 
+    'total_experience_years', 
+    'minimum_monthly_salary', 
+    'maximum_monthly_salary',
+    'adults',
+    'children',
+    'rooms',
+    'bathrooms',
+    'view_count',
+    'plan_days',
+    'payment_amount',
+    'columns_percentage'
+  ];
+  
+  numericFields.forEach(field => {
+    if (preparedData[field] !== undefined && preparedData[field] !== null) {
+      if (typeof preparedData[field] === 'string') {
+        const num = parseFloat(preparedData[field]);
+        preparedData[field] = isNaN(num) ? 0 : num;
+      }
+    }
+  });
+  
+  return preparedData;
 }
 
 // Function to calculate filled columns percentage
@@ -161,12 +259,13 @@ router.post("/employer", upload.single('profile_photo'), handleMulterError, asyn
     if (req.file) {
       data.profile_photo = `/images/${req.file.filename}`;
     }
-    // Process JSON fields
-    stringifyJsonFields(data);
+    
+    // Prepare data for MySQL (handle dates, JSON, and types)
+    const preparedData = prepareDataForMySQL(data);
 
     // Calculate columns percentage
-    const percentage = await calculateColumnsPercentage(data);
-    data.columns_percentage = percentage;
+    const percentage = await calculateColumnsPercentage(preparedData);
+    preparedData.columns_percentage = percentage;
 
     // Check if the row exists
     const [existing] = await db.execute(
@@ -183,8 +282,8 @@ router.post("/employer", upload.single('profile_photo'), handleMulterError, asyn
       // Only update fields provided
       const updateData = {};
       employerFields.forEach(key => {
-        if (data[key] !== undefined) {
-          updateData[key] = data[key];
+        if (preparedData[key] !== undefined) {
+          updateData[key] = preparedData[key];
         }
       });
 
@@ -193,7 +292,7 @@ router.post("/employer", upload.single('profile_photo'), handleMulterError, asyn
       }
 
       const fields = Object.keys(updateData).map(key => `${key} = ?`).join(", ");
-      const values = Object.keys(updateData).map(key => updateData[key]);
+      const values = Object.values(updateData);
 
       await db.execute(
         `UPDATE employer SET ${fields} WHERE temporary_id = ? AND user_id = ?`,
@@ -201,12 +300,12 @@ router.post("/employer", upload.single('profile_photo'), handleMulterError, asyn
       );
 
       // Subscription renewal check and email notification
-      if (data.plan_name && data.plan_enddate && (data.plan_name !== previousPlanName || data.plan_enddate !== previousPlanEndDate)) {
+      if (preparedData.plan_name && preparedData.plan_enddate && (preparedData.plan_name !== previousPlanName || preparedData.plan_enddate !== previousPlanEndDate)) {
         await emailService.sendSubscriptionRenewalConfirmation(
-          data.email_id || existing[0].email_id,
-          data.name || existing[0].name,
-          data.plan_name,
-          data.plan_enddate
+          preparedData.email_id || existing[0].email_id,
+          preparedData.name || existing[0].name,
+          preparedData.plan_name,
+          preparedData.plan_enddate
         );
       }
 
@@ -223,10 +322,10 @@ router.post("/employer", upload.single('profile_photo'), handleMulterError, asyn
       values.push(user_id, temporary_id);
 
       employerFields.forEach(field => {
-        if (field !== 'user_id' && field !== 'temporary_id' && data[field] !== undefined) {
+        if (field !== 'user_id' && field !== 'temporary_id' && preparedData[field] !== undefined) {
           columns.push(field);
           placeholders.push('?');
-          values.push(data[field]);
+          values.push(preparedData[field]);
         }
       });
 
@@ -240,7 +339,7 @@ router.post("/employer", upload.single('profile_photo'), handleMulterError, asyn
       });
     }
   } catch (err) {
-    console.error(err);
+    console.error('Database error:', err);
     res.status(500).json({ message: "Database error", error: err.message });
   }
 });
@@ -254,17 +353,14 @@ router.put("/employer/", upload.single('profile_photo'), handleMulterError, asyn
     return res.status(400).json({ message: "temporary_id and user_id are required" });
   }
 
-  let setClause;
-  let values;
-
   try {
     // Handle file upload if present
     if (req.file) {
       data.profile_photo = `/images/${req.file.filename}`;
     }
 
-    // Stringify JSON fields properly
-    stringifyJsonFields(data);
+    // Prepare data for MySQL (handle dates, JSON, and types)
+    const preparedData = prepareDataForMySQL(data);
 
     // Get the existing record to check for subscription changes and merge data
     const [existing] = await db.execute(
@@ -280,13 +376,13 @@ router.put("/employer/", upload.single('profile_photo'), handleMulterError, asyn
     const previousPlanEndDate = existing[0].plan_enddate;
 
     // Merge existing data with new data to calculate percentage accurately
-    const mergedData = { ...existing[0], ...data };
+    const mergedData = { ...existing[0], ...preparedData };
     const percentage = await calculateColumnsPercentage(mergedData);
-    data.columns_percentage = percentage;
+    preparedData.columns_percentage = percentage;
 
     // Build update set and values for only provided fields
     const updateFields = employerFields.filter(
-      key => key !== "temporary_id" && key !== "user_id" && data[key] !== undefined
+      key => key !== "temporary_id" && key !== "user_id" && preparedData[key] !== undefined
     );
 
     if (updateFields.length === 0) {
@@ -294,28 +390,8 @@ router.put("/employer/", upload.single('profile_photo'), handleMulterError, asyn
     }
 
     // Prepare values properly for MySQL
-    values = updateFields.map(key => {
-      const value = data[key];
-
-      // Handle arrays and objects by stringifying them
-      if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
-        return JSON.stringify(value);
-      }
-
-      // Handle dates - convert to MySQL format
-      if (value instanceof Date) {
-        return value.toISOString().slice(0, 19).replace('T', ' ');
-      }
-
-      // Handle boolean values
-      if (typeof value === 'boolean') {
-        return value ? 1 : 0;
-      }
-
-      return value;
-    });
-
-    setClause = updateFields.map(key => `${key} = ?`).join(", ");
+    const values = updateFields.map(key => preparedData[key]);
+    const setClause = updateFields.map(key => `${key} = ?`).join(", ");
 
     // Add the WHERE clause values
     values.push(temporary_id, user_id);
@@ -326,13 +402,13 @@ router.put("/employer/", upload.single('profile_photo'), handleMulterError, asyn
     );
 
     if (result.affectedRows > 0) {
-      if (data.plan_name && data.plan_enddate &&
-        (data.plan_name !== previousPlanName || data.plan_enddate !== previousPlanEndDate)) {
+      if (preparedData.plan_name && preparedData.plan_enddate &&
+        (preparedData.plan_name !== previousPlanName || preparedData.plan_enddate !== previousPlanEndDate)) {
         await emailService.sendSubscriptionRenewalConfirmation(
-          data.email_id || existing[0].email_id,
-          data.name || existing[0].name,
-          data.plan_name,
-          data.plan_enddate
+          preparedData.email_id || existing[0].email_id,
+          preparedData.name || existing[0].name,
+          preparedData.plan_name,
+          preparedData.plan_enddate
         );
       }
 
@@ -346,8 +422,6 @@ router.put("/employer/", upload.single('profile_photo'), handleMulterError, asyn
   } catch (err) {
     console.error('Database error:', {
       error: err,
-      constructedQuery: `UPDATE employer SET ${setClause} WHERE temporary_id = ? AND user_id = ?`,
-      values: values,
       dataReceived: data
     });
     res.status(500).json({
@@ -356,37 +430,6 @@ router.put("/employer/", upload.single('profile_photo'), handleMulterError, asyn
     });
   }
 });
-
-// Add this helper function if you don't have it already
-function stringifyJsonFields(data) {
-  const jsonFields = [
-    'preferred_years_of_experience',
-    'candidates_country_experience',
-    'preferred_candidates_country',
-    'preferred_language_for_worker',
-    'main_skills',
-    'cooking_skills',
-    'other_skills',
-    'offer_for_selected_candidates'
-  ];
-
-  jsonFields.forEach(field => {
-    if (data[field] !== undefined && data[field] !== null) {
-      if (typeof data[field] === 'string') {
-        try {
-          // If it's already a JSON string, parse and re-stringify to ensure validity
-          JSON.parse(data[field]);
-          data[field] = data[field]; // Already valid JSON string
-        } catch (e) {
-          // If it's not valid JSON, treat as regular string
-          data[field] = JSON.stringify(data[field]);
-        }
-      } else {
-        data[field] = JSON.stringify(data[field]);
-      }
-    }
-  });
-}
 
 // PUT - Update employer data by ID with photo upload support
 router.put("/employer/:id", upload.single('profile_photo'), handleMulterError, async (req, res) => {
@@ -397,15 +440,14 @@ router.put("/employer/:id", upload.single('profile_photo'), handleMulterError, a
     return res.status(400).json({ message: "id is required" });
   }
 
-  let setClause;
-  let values;
-
   try {
     // Handle file upload if present
     if (req.file) {
       data.profile_photo = `/images/${req.file.filename}`;
     }
-    stringifyJsonFields(data);
+    
+    // Prepare data for MySQL (handle dates, JSON, and types)
+    const preparedData = prepareDataForMySQL(data);
 
     // Get existing record and merge for accurate % calculation
     const [existing] = await db.execute(
@@ -420,21 +462,21 @@ router.put("/employer/:id", upload.single('profile_photo'), handleMulterError, a
     const previousPlanName = existing[0].plan_name;
     const previousPlanEndDate = existing[0].plan_enddate;
 
-    const mergedData = { ...existing[0], ...data };
+    const mergedData = { ...existing[0], ...preparedData };
     const percentage = await calculateColumnsPercentage(mergedData);
-    data.columns_percentage = percentage;
+    preparedData.columns_percentage = percentage;
 
     // Build update set and values for only provided fields
     const updateFields = employerFields.filter(
-      key => key !== "id" && data[key] !== undefined
+      key => key !== "id" && preparedData[key] !== undefined
     );
 
     if (updateFields.length === 0) {
       return res.status(400).json({ message: "No fields to update" });
     }
 
-    setClause = updateFields.map(key => `${key} = ?`).join(", ");
-    values = updateFields.map(key => data[key]);
+    const setClause = updateFields.map(key => `${key} = ?`).join(", ");
+    const values = updateFields.map(key => preparedData[key]);
     values.push(id);
 
     const [result] = await db.execute(
@@ -443,13 +485,13 @@ router.put("/employer/:id", upload.single('profile_photo'), handleMulterError, a
     );
 
     if (result.affectedRows > 0) {
-      if (data.plan_name && data.plan_enddate &&
-        (data.plan_name !== previousPlanName || data.plan_enddate !== previousPlanEndDate)) {
+      if (preparedData.plan_name && preparedData.plan_enddate &&
+        (preparedData.plan_name !== previousPlanName || preparedData.plan_enddate !== previousPlanEndDate)) {
         await emailService.sendSubscriptionRenewalConfirmation(
-          data.email_id || existing[0].email_id,
-          data.name || existing[0].name,
-          data.plan_name,
-          data.plan_enddate
+          preparedData.email_id || existing[0].email_id,
+          preparedData.name || existing[0].name,
+          preparedData.plan_name,
+          preparedData.plan_enddate
         );
       }
 
@@ -463,8 +505,6 @@ router.put("/employer/:id", upload.single('profile_photo'), handleMulterError, a
   } catch (err) {
     console.error('Database error:', {
       error: err,
-      constructedQuery: `UPDATE employer SET ${setClause} WHERE id = ?`,
-      values: values,
       dataReceived: data
     });
     res.status(500).json({
@@ -558,7 +598,6 @@ router.get("/employer/:id", async (req, res) => {
     res.status(500).json({ message: "Database error", error: err.message });
   }
 });
-
 
 // GET employer data by user_id (for shortlist details)
 router.get("/employer/user/:user_id", async (req, res) => {
@@ -746,6 +785,10 @@ router.put('/subscription/users/:id', async (req, res) => {
       payment_amount
     } = req.body;
 
+    // Prepare dates for MySQL
+    const mysqlPlanStartDate = convertToMySQLDateTime(plan_startdate);
+    const mysqlPlanEndDate = convertToMySQLDateTime(plan_enddate);
+
     // ✅ Update query
     const [result] = await db.query(
       `UPDATE users 
@@ -763,8 +806,8 @@ router.put('/subscription/users/:id', async (req, res) => {
         subscription,
         plan_name,
         plan_days,
-        plan_startdate,
-        plan_enddate,
+        mysqlPlanStartDate,
+        mysqlPlanEndDate,
         payment_status,
         payment_amount,
         userId
@@ -782,7 +825,6 @@ router.put('/subscription/users/:id', async (req, res) => {
   }
 });
 
-
 router.put('/subscription/agency_user/:id', async (req, res) => {
   try {
     const userId = req.params.id;
@@ -796,6 +838,10 @@ router.put('/subscription/agency_user/:id', async (req, res) => {
       payment_status,
       payment_amount
     } = req.body;
+
+    // Prepare dates for MySQL
+    const mysqlPlanStartDate = convertToMySQLDateTime(plan_startdate);
+    const mysqlPlanEndDate = convertToMySQLDateTime(plan_enddate);
 
     // ✅ Update query
     const [result] = await db.query(
@@ -814,8 +860,8 @@ router.put('/subscription/agency_user/:id', async (req, res) => {
         subscription,
         plan_name,
         plan_days,
-        plan_startdate,
-        plan_enddate,
+        mysqlPlanStartDate,
+        mysqlPlanEndDate,
         payment_status,
         payment_amount,
         userId
@@ -832,6 +878,5 @@ router.put('/subscription/agency_user/:id', async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
-
 
 module.exports = router;
