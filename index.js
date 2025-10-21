@@ -8,7 +8,7 @@ const emailService = require('./routes/emailService');
 const db = require('./db');
 
 
-const port = 5001;
+const port = 5000;
 
 
 
@@ -67,17 +67,17 @@ require('./routes/inactivityChecker');
 
 // Schedule daily subscription reminder at 1:30 PM IST (08:00 AM UTC)
 // ✅ Schedule daily subscription reminder at 1:30 PM IST
-cron.schedule('52 16 * * *', async () => {
-  console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
-  try {
-    const result = await emailService.checkAndSendSubscriptionReminders(db);
-    console.log('✅ Subscription reminders processed:', result);
-  } catch (err) {
-    console.error('❌ Error in scheduled subscription reminders:', err); 
-  }
-}, {
-  timezone: 'Asia/Kolkata'
-});
+// cron.schedule('52 16 * * *', async () => {
+//   console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
+//   try {
+//     const result = await emailService.checkAndSendSubscriptionReminders(db);
+//     console.log('✅ Subscription reminders processed:', result);
+//   } catch (err) {
+//     console.error('❌ Error in scheduled subscription reminders:', err); 
+//   }
+// }, {
+//   timezone: 'Asia/Kolkata'
+// });
 
 // Start server
 app.listen(port, () => {

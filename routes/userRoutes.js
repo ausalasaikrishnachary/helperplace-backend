@@ -59,13 +59,13 @@ router.post('/send-reg-otp', async (req, res) => {
     // Generate and store OTP (valid for 10 minutes)
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
-    
+
     otpStore.set(email, { otp, expiresAt });
 
     // Send OTP email
     await sendOtpEmail(email, otp);
 
-    res.json({ 
+    res.json({
       message: 'OTP sent successfully',
       expiresAt: expiresAt.toISOString()
     });
@@ -103,7 +103,7 @@ router.post('/verify-otp', async (req, res) => {
     // OTP is valid - mark email as verified in our temporary store
     otpStore.set(email, { ...storedOtpData, verified: true });
 
-    res.json({ 
+    res.json({
       message: 'OTP verified successfully',
       verified: true
     });
@@ -143,7 +143,7 @@ router.post('/', async (req, res) => {
         role, source, location, language_preference, agency_uid, agency_mail, is_verified
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    
+
     const [result] = await db.query(query, [
       email, mobile_number, password, first_name, last_name,
       role, source, location, language_preference, agency_uid, agency_mail,
@@ -188,7 +188,7 @@ router.put('/:id', async (req, res) => {
       WHERE id = ?
     `;
     await db.query(query, [
-      email, mobile_number, password, first_name, last_name, 
+      email, mobile_number, password, first_name, last_name,
       location, language_preference, id
     ]);
     res.json({ message: 'User updated successfully' });
@@ -225,13 +225,13 @@ router.post('/login', async (req, res) => {
 
     if (userResults.length > 0) {
       const user = userResults[0];
-      
+
       // Update login activity for the user
       await db.query(
         'UPDATE users SET last_login_date = NOW() WHERE id = ?',
         [user.id]
       );
-      
+
       return res.json({
         message: 'Login successful',
         user: {
@@ -244,7 +244,7 @@ router.post('/login', async (req, res) => {
           is_verified: user.is_verified,
           created_at: user.created_at,
           user_type: user.role,
-          plan_name:user.plan_name,
+          plan_name: user.plan_name,
           plan_startdate: user.plan_startdate,
           plan_enddate: user.plan_enddate
         }
@@ -259,13 +259,13 @@ router.post('/login', async (req, res) => {
 
     if (agencyResults.length > 0) {
       const agencyUser = agencyResults[0];
-      
+
       // Update login activity for agency user
       await db.query(
         'UPDATE agency_user SET last_login_date = NOW() WHERE id = ?',
         [agencyUser.id]
       );
-      
+
       return res.json({
         message: 'Login successful',
         user: {
@@ -278,6 +278,9 @@ router.post('/login', async (req, res) => {
           is_verified: agencyUser.is_verified,
           created_at: agencyUser.created_at,
           user_type: agencyUser.role,
+          plan_name: agencyUser.plan_name,
+          plan_startdate: agencyUser.plan_startdate,
+          plan_enddate: agencyUser.plan_enddate
         }
       });
     }
@@ -292,10 +295,10 @@ router.post('/login', async (req, res) => {
 
 router.post('/api/send-rejection-email', async (req, res) => {
   const { email, firstName } = req.body;
-  
+
   // Validate required fields
   if (!email || !firstName) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
       message: 'Both email and firstName are required'
     });
@@ -303,13 +306,13 @@ router.post('/api/send-rejection-email', async (req, res) => {
 
   try {
     await sendProfileRejectedEmail(email, firstName);
-    res.json({ 
+    res.json({
       success: true,
-      message: 'Rejection email sent successfully' 
+      message: 'Rejection email sent successfully'
     });
   } catch (err) {
     console.error('Error sending rejection email:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: err.message || 'Failed to send rejection email'
     });
@@ -340,13 +343,13 @@ router.post('/google-auth', async (req, res) => {
 
     if (userResults.length > 0) {
       const user = userResults[0];
-      
+
       // Update login activity for the user
       await db.query(
         'UPDATE users SET last_login_date = NOW() WHERE id = ?',
         [user.id]
       );
-      
+
       return res.json({
         message: 'Login successful',
         user: {
@@ -358,18 +361,18 @@ router.post('/google-auth', async (req, res) => {
           role: user.role,
           is_verified: user.is_verified,
           created_at: user.created_at,
-          user_type: 'general' 
+          user_type: 'general'
         }
       });
     } else if (agencyResults.length > 0) {
       const agencyUser = agencyResults[0];
-      
+
       // Update login activity for agency user
       await db.query(
         'UPDATE agency_user SET last_login_date = NOW() WHERE id = ?',
         [agencyUser.id]
       );
-      
+
       return res.json({
         message: 'Login successful',
         user: {
@@ -392,7 +395,7 @@ router.post('/google-auth', async (req, res) => {
           role, is_verified, source
         ) VALUES (?, ?, ?, 'job seeker', 1, 'google')
       `;
-      
+
       const [result] = await db.query(query, [
         email, firstName, lastName
       ]);
