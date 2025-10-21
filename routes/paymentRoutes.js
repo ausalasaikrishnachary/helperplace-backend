@@ -4,9 +4,14 @@ const crypto = require("crypto");
 const router = express.Router();
 
 // ✅ Initialize Razorpay here only
+// const razorpay = new Razorpay({
+//   key_id: "rzp_test_jIUzBukJnwE5kE",
+//   key_secret: "ZhnhUtHuusGrZBSqBAnwXhAI"
+// });
+
 const razorpay = new Razorpay({
-  key_id: "rzp_test_jIUzBukJnwE5kE",
-  key_secret: "ZhnhUtHuusGrZBSqBAnwXhAI"
+  key_id: "rzp_test_RUqBDkqa10TxXE",
+  key_secret: "YH5qifp0nv6z1m0ItHD3vQ3F"
 });
 
 // Create Razorpay Order

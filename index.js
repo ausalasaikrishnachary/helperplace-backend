@@ -8,7 +8,7 @@ const emailService = require('./routes/emailService');
 const db = require('./db');
 
 
-const port = 5001;
+const port = 5000;
 
 
 
