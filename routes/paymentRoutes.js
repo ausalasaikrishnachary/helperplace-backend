@@ -23,7 +23,7 @@ const razorpay = new Razorpay({
 router.post("/orders", async (req, res) => {
   const options = {
     amount: req.body.amount, // amount in paise
-    currency: req.body.currency || "INR",
+    currency: req.body.currency || "USD",
     receipt: `receipt_${Date.now()}`,
     payment_capture: 1
   };
