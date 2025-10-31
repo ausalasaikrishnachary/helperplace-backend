@@ -36,7 +36,11 @@ router.post('/subscriptionplans', async (req, res) => {
     direct_call_access,
     share_option,
     view_limit,
+    contact_details,
+    candidate_contact_details,
     alerts_for_new_cvs,
+    currency,
+    price,
     full_contact_details,
     activate_deactivate_option
   } = req.body;
@@ -53,10 +57,14 @@ router.post('/subscriptionplans', async (req, res) => {
         direct_call_access,
         share_option,
         view_limit,
+        contact_details,
+        candidate_contact_details,
         alerts_for_new_cvs,
+        currency,
+        price,
         full_contact_details,
         activate_deactivate_option
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const [result] = await db.query(query, [
@@ -69,7 +77,11 @@ router.post('/subscriptionplans', async (req, res) => {
       direct_call_access,
       share_option,
       view_limit,
+      contact_details,
+      candidate_contact_details,
       alerts_for_new_cvs,
+      currency,
+      price,
       full_contact_details,
       activate_deactivate_option
     ]);
@@ -98,7 +110,11 @@ router.put('/subscriptionplans/:id', async (req, res) => {
     direct_call_access,
     share_option,
     view_limit,
+    contact_details,
+    candidate_contact_details,
     alerts_for_new_cvs,
+    currency,
+    price,
     full_contact_details,
     activate_deactivate_option
   } = req.body;
@@ -115,7 +131,11 @@ router.put('/subscriptionplans/:id', async (req, res) => {
         direct_call_access = ?,
         share_option = ?,
         view_limit = ?,
+        contact_details = ?,
+        candidate_contact_details = ?,
         alerts_for_new_cvs = ?,
+        currency = ?,
+        price = ?,
         full_contact_details = ?,
         activate_deactivate_option = ?,
         updated_at = CURRENT_TIMESTAMP
@@ -132,7 +152,11 @@ router.put('/subscriptionplans/:id', async (req, res) => {
       direct_call_access,
       share_option,
       view_limit,
+      contact_details,
+      candidate_contact_details,
       alerts_for_new_cvs,
+      currency,
+      price,
       full_contact_details,
       activate_deactivate_option,
       id
