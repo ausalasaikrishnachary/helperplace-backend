@@ -64,20 +64,24 @@ router.get('/message/:emp_id/:job_seeker_id/get', async (req, res) => {
 
 
 // Create a new mail
+// Fix the POST route in your backend
+// Fix the POST route in your backend
 router.post('/message', async (req, res) => {
-  const { emp_id, job_seeker_id, message } = req.body;
+  const { emp_id, job_seeker_id, message, sender_id } = req.body;
   try {
     const query = `
-      INSERT INTO mails_table (emp_id, job_seeker_id, message)
-      VALUES (?, ?, ?)
+      INSERT INTO mails_table (emp_id, job_seeker_id, sender_id, message)
+      VALUES (?, ?, ?, ?)
     `;
-    const [result] = await db.query(query, [emp_id, job_seeker_id, message]);
+    // Use the sender_id from request body, fallback to emp_id if not provided
+    const [result] = await db.query(query, [emp_id, job_seeker_id, sender_id || emp_id, message]);
 
     res.status(201).json({
       message: 'Mail created',
       mailId: result.insertId,
       emp_id,
       job_seeker_id,
+      sender_id: sender_id || emp_id,
       message
     });
   } catch (err) {
