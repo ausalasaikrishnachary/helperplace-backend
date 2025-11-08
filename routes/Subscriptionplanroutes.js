@@ -42,6 +42,7 @@ router.post("/subscriptionplans", async (req, res) => {
     alerts_for_new_cvs,
     currency,
     price,
+    limit_count,
     full_contact_details,
     activate_deactivate_option,
   } = req.body;
@@ -103,11 +104,13 @@ router.post("/subscriptionplans", async (req, res) => {
         alerts_for_new_cvs,
         currency,
         price,
+        limit_count,
         full_contact_details,
         activate_deactivate_option,
         plan_id,
         period
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
     `;
 
     const [result] = await db.query(query, [
@@ -125,6 +128,7 @@ router.post("/subscriptionplans", async (req, res) => {
       alerts_for_new_cvs,
       currency,
       price,
+      limit_count,
       full_contact_details,
       activate_deactivate_option,
       razorpayPlan.id,
@@ -166,6 +170,7 @@ router.put('/subscriptionplans/:id', async (req, res) => {
     alerts_for_new_cvs,
     currency,
     price,
+    limit_count,
     full_contact_details,
     activate_deactivate_option
   } = req.body;
@@ -187,6 +192,7 @@ router.put('/subscriptionplans/:id', async (req, res) => {
         alerts_for_new_cvs = ?,
         currency = ?,
         price = ?,
+        limit_count = ?,
         full_contact_details = ?,
         activate_deactivate_option = ?,
         updated_at = CURRENT_TIMESTAMP
@@ -208,6 +214,7 @@ router.put('/subscriptionplans/:id', async (req, res) => {
       alerts_for_new_cvs,
       currency,
       price,
+      limit_count,
       full_contact_details,
       activate_deactivate_option,
       id
