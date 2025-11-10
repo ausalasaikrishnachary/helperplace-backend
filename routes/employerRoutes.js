@@ -5,6 +5,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const emailService = require('./emailService');
+const razorpay = require("./razorpay");
+const { transporter, ADMIN_EMAIL } = require('./nodemailer');
 
 // Ensure images folder exists with proper path resolution
 const imagesDir = path.join(__dirname, '..', 'images');
@@ -73,19 +75,19 @@ const jsonFields = [
 // Date conversion function for MySQL
 function convertToMySQLDateTime(dateValue) {
   if (!dateValue) return null;
-  
+
   try {
     // If it's already in MySQL format, return as is
     if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateValue)) {
       return dateValue;
     }
-    
+
     // If it's an ISO string or Date object, convert to MySQL format
     const date = new Date(dateValue);
     if (isNaN(date.getTime())) {
       return null; // Invalid date
     }
-    
+
     return date.toISOString().slice(0, 19).replace('T', ' ');
   } catch (error) {
     console.error('Error converting date:', error);
@@ -96,21 +98,21 @@ function convertToMySQLDateTime(dateValue) {
 // Function to prepare data for MySQL, handling dates, JSON, and boolean values
 function prepareDataForMySQL(data) {
   const preparedData = { ...data };
-  
+
   // Handle date fields
   const dateFields = [
     'plan_startdate',
-    'plan_enddate', 
+    'plan_enddate',
     'posted_on',
     'job_starting_date'
   ];
-  
+
   dateFields.forEach(field => {
     if (preparedData[field] !== undefined && preparedData[field] !== null) {
       preparedData[field] = convertToMySQLDateTime(preparedData[field]);
     }
   });
-  
+
   // Handle JSON fields - ensure they are properly stringified
   jsonFields.forEach(field => {
     if (preparedData[field] !== undefined && preparedData[field] !== null) {
@@ -132,7 +134,7 @@ function prepareDataForMySQL(data) {
       }
     }
   });
-  
+
   // Handle boolean fields
   const booleanFields = ['negotiable', 'have_pets', 'have_domestic_worker'];
   booleanFields.forEach(field => {
@@ -146,12 +148,12 @@ function prepareDataForMySQL(data) {
       }
     }
   });
-  
+
   // Handle numeric fields
   const numericFields = [
-    'gulf_experience_years', 
-    'total_experience_years', 
-    'minimum_monthly_salary', 
+    'gulf_experience_years',
+    'total_experience_years',
+    'minimum_monthly_salary',
     'maximum_monthly_salary',
     'adults',
     'children',
@@ -162,7 +164,7 @@ function prepareDataForMySQL(data) {
     'payment_amount',
     'columns_percentage'
   ];
-  
+
   numericFields.forEach(field => {
     if (preparedData[field] !== undefined && preparedData[field] !== null) {
       if (typeof preparedData[field] === 'string') {
@@ -171,7 +173,7 @@ function prepareDataForMySQL(data) {
       }
     }
   });
-  
+
   return preparedData;
 }
 
@@ -225,25 +227,25 @@ router.get("/employer/check-subscriptions", async (req, res) => {
 
 // List of all possible fields for insert/update excluding id (auto increment)
 const employerFields = [
-    'user_id', 'temporary_id', 'emp_name', 'domestic_worker_category', 'job_type', 
-    'job_title', 'job_description', 'job_starting_date', 'prefer_contract_status', 
-    'looking_worker_for', 'candidate_experience', 'prefer_experience', 
-    'preferred_years_of_experience', 'gulf_experience_years', 'total_experience_years', 
-    'candidates_country_experience', 'preferred_candidates_country', 
-    'preferred_language_for_worker', 'locaion_preference', 'most_important_skill', 
-    'main_skills', 'cooking_skills', 'other_skills', 'gender', 'religion', 
-    'education_level', 'age', 'working_city', 'state_or_province', 'country', 
-    'name', 'contact_source', 'email_id', 'whatsapp_number_country_code', 
-    'whatsapp_number', 'phone_number_country_code', 'phone_number', 'nationality', 
-    'organization_name', 'offer_for_selected_candidates', 'country_currency', 
-    'minimum_monthly_salary', 'maximum_monthly_salary', 'negotiable', 'adults', 
-    'children', 'type_of_house', 'rooms', 'bathrooms', 'have_pets', 'worker_nationality', 
-    'phone_country_code', 'location_preference', 'domestic_worker_name', 
-    'have_domestic_worker', 'nationality_of_domestic_worker', 'status', 'subscription', 
-    'plan_name', 'plan_days', 'plan_startdate', 'plan_enddate', 'payment_amount', 
-    'payment_status', 'posted_by', 'view_count', 'posted_on', 'profile_photo', 
-    'offer', 'profile_photo_url', 'subscription_plan_id', 'columns_percentage', 
-    'currency_name'
+  'user_id', 'temporary_id', 'emp_name', 'domestic_worker_category', 'job_type',
+  'job_title', 'job_description', 'job_starting_date', 'prefer_contract_status',
+  'looking_worker_for', 'candidate_experience', 'prefer_experience',
+  'preferred_years_of_experience', 'gulf_experience_years', 'total_experience_years',
+  'candidates_country_experience', 'preferred_candidates_country',
+  'preferred_language_for_worker', 'locaion_preference', 'most_important_skill',
+  'main_skills', 'cooking_skills', 'other_skills', 'gender', 'religion',
+  'education_level', 'age', 'working_city', 'state_or_province', 'country',
+  'name', 'contact_source', 'email_id', 'whatsapp_number_country_code',
+  'whatsapp_number', 'phone_number_country_code', 'phone_number', 'nationality',
+  'organization_name', 'offer_for_selected_candidates', 'country_currency',
+  'minimum_monthly_salary', 'maximum_monthly_salary', 'negotiable', 'adults',
+  'children', 'type_of_house', 'rooms', 'bathrooms', 'have_pets', 'worker_nationality',
+  'phone_country_code', 'location_preference', 'domestic_worker_name',
+  'have_domestic_worker', 'nationality_of_domestic_worker', 'status', 'subscription',
+  'plan_name', 'plan_days', 'plan_startdate', 'plan_enddate', 'payment_amount',
+  'payment_status', 'posted_by', 'view_count', 'posted_on', 'profile_photo',
+  'offer', 'profile_photo_url', 'subscription_plan_id', 'columns_percentage',
+  'currency_name'
 ];
 
 // POST or UPDATE employer record with photo upload support
@@ -259,7 +261,7 @@ router.post("/employer", upload.single('profile_photo'), handleMulterError, asyn
     if (req.file) {
       data.profile_photo = `/images/${req.file.filename}`;
     }
-    
+
     // Prepare data for MySQL (handle dates, JSON, and types)
     const preparedData = prepareDataForMySQL(data);
 
@@ -445,7 +447,7 @@ router.put("/employer/:id", upload.single('profile_photo'), handleMulterError, a
     if (req.file) {
       data.profile_photo = `/images/${req.file.filename}`;
     }
-    
+
     // Prepare data for MySQL (handle dates, JSON, and types)
     const preparedData = prepareDataForMySQL(data);
 
@@ -771,35 +773,149 @@ router.get("/employer/columns-percentage/:id", async (req, res) => {
   }
 });
 
-router.put('/subscription/users/:id', async (req, res) => {
+// ✅ Helper: Convert ISO Date String to MySQL DateTime format
+function convertToMySQLDateTime(dateString) {
+  if (!dateString) return null;
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    console.warn("⚠️ Invalid date passed to convertToMySQLDateTime:", dateString);
+    return null;
+  }
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+// ✅ Helper: Convert UNIX timestamp (seconds) to dd/mm/yyyy
+function formatUnixDate(timestamp) {
+  if (!timestamp) return null;
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleDateString("en-GB"); // dd/mm/yyyy
+}
+
+// 🔹 Create subscription
+router.post("/subscription/create", async (req, res) => {
+  try {
+    const { plan_id, customer_id, plan_name, plan_days, user_id } = req.body;
+
+    if (!plan_id || !customer_id) {
+      return res.status(400).json({
+        success: false,
+        message: "plan_id and customer_id are required",
+      });
+    }
+
+    // ✅ Extract numeric value from plan_days like "7 Days" → 7
+    const planDays = parseInt(plan_days);
+    if (isNaN(planDays) || planDays <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid plan_days value. Expected format like '7 Days'.",
+      });
+    }
+
+    // 🕒 Fix: Convert Date.now() to seconds
+    const startAt = Math.floor(Date.now() / 1000) + 60;
+
+    // ✅ Calculate next due & expiry in seconds
+    const nextDueSeconds = planDays * 24 * 60 * 60;
+    const totalCount = Math.ceil(365 / planDays);
+    const expireBy = startAt + nextDueSeconds * totalCount;
+
+    // console.log("📅 Start Date:", formatUnixDate(startAt));
+    // console.log("📅 Expire By:", formatUnixDate(expireBy));
+
+    // ✅ Create Razorpay Subscription
+    const razorpaysubscription = await razorpay.subscriptions.create({
+      plan_id,
+      customer_id,
+      total_count: totalCount,
+      customer_notify: 1,
+      notes: {
+        plan_name,
+        plan_days,
+        user_id,
+      },
+    });
+
+    // console.log("✅ Razorpay Subscription Created:", razorpaysubscription);
+
+    // 🗓️ Format key dates for response
+    const formattedDates = {
+      charge_at: formatUnixDate(razorpaysubscription.charge_at),
+      start_at: formatUnixDate(razorpaysubscription.start_at),
+      current_start: formatUnixDate(razorpaysubscription.current_start),
+      current_end: formatUnixDate(razorpaysubscription.current_end),
+      expire_by: formatUnixDate(razorpaysubscription.expire_by),
+      created_at: formatUnixDate(razorpaysubscription.created_at),
+    };
+
+    // ✅ Return success
+    res.json({
+      success: true,
+      message: "Razorpay subscription created successfully",
+      subscription_id: razorpaysubscription.id,
+      subscription_status: razorpaysubscription.status,
+      formatted_dates: formattedDates,
+      total_count: razorpaysubscription.total_count,
+      paid_count: razorpaysubscription.paid_count,
+      entity: razorpaysubscription.entity,
+      customer_id: razorpaysubscription.customer_id,
+      plan_id: razorpaysubscription.plan_id,
+    });
+  } catch (error) {
+    console.error("❌ Error creating Razorpay subscription:", error);
+    res.status(500).json({
+      success: false,
+      message:
+        error.error?.description || error.message || "Internal server error",
+    });
+  }
+});
+
+router.put("/subscription/users/:id", async (req, res) => {
   try {
     const userId = req.params.id;
     const {
       subscription_plan_id,
       subscription,
+      plan_id,
       plan_name,
       plan_days,
       plan_startdate,
       plan_enddate,
       payment_status,
-      payment_amount
+      payment_amount,
+      razorpay_subscription_id,
+      customer_id,
+      subscription_status
     } = req.body;
 
-    // Prepare dates for MySQL
+    // console.log("🟡 Updating User Subscription:", req.body);
+
+    if (!plan_id || !customer_id) {
+      return res.status(400).json({
+        success: false,
+        message: "plan_id and customer_id are required",
+      });
+    }
+
+    // ✅ Convert to MySQL DateTime
     const mysqlPlanStartDate = convertToMySQLDateTime(plan_startdate);
     const mysqlPlanEndDate = convertToMySQLDateTime(plan_enddate);
 
-    // ✅ Update query
     const [result] = await db.query(
       `UPDATE users 
        SET subscription_plan_id = ?, 
-       subscription = ?,
+           subscription = ?, 
            plan_name = ?, 
            plan_days = ?, 
            plan_startdate = ?, 
            plan_enddate = ?, 
+           next_duedate = ?,
            payment_status = ?, 
-           payment_amount = ? 
+           payment_amount = ?, 
+           razorpay_subscription_id = ?, 
+           razorpay_plan_id = ? ,
+           subscription_status = ?
        WHERE id = ?`,
       [
         subscription_plan_id,
@@ -808,9 +924,13 @@ router.put('/subscription/users/:id', async (req, res) => {
         plan_days,
         mysqlPlanStartDate,
         mysqlPlanEndDate,
+        mysqlPlanEndDate,
         payment_status,
         payment_amount,
-        userId
+        razorpay_subscription_id,
+        plan_id,
+        subscription_status,
+        userId,
       ]
     );
 
@@ -818,10 +938,134 @@ router.put('/subscription/users/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    res.json({ success: true, message: "Subscription details updated successfully" });
+    res.json({
+      success: true,
+      message: "Subscription details updated in MySQL successfully",
+    });
   } catch (error) {
-    console.error("Error updating subscription:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    console.error("❌ Error updating subscription:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+});
+
+router.post('/subscription/cancel', async (req, res) => {
+  try {
+    const { subscription_id, user_id, customer_id, plan_name } = req.body;
+
+    if (!subscription_id || !user_id || !customer_id) {
+      console.log("Missing required fields");
+      return res.status(400).json({
+        success: false,
+        message: 'Subscription ID, User ID and Customer ID are required'
+      });
+    }
+
+    // 1. Fetch customer details to get email
+    console.log("Fetching Razorpay customer:", customer_id);
+    const customer = await razorpay.customers.fetch(customer_id);
+    console.log("Customer Details:", customer);
+
+    const customerEmail = customer.email;
+    const customerName = customer.name || "Customer";
+
+    // 2. Cancel subscription on Razorpay
+    const subscription = await razorpay.subscriptions.cancel(subscription_id);
+    // console.log("Razorpay Cancel Response:", subscription);
+
+    // 3. Update DB
+    const updateUserQuery = `
+      UPDATE users 
+      SET 
+        subscription_plan_id = NULL,
+        subscription = NULL,
+        razorpay_plan_id = NULL,
+        plan_name = NULL,
+        plan_days = NULL,
+        plan_startdate = NULL,
+        plan_enddate = NULL,
+        next_duedate = NULL,
+        payment_status = NULL,
+        payment_amount = NULL,
+        razorpay_subscription_id = NULL,
+        subscription_status = NULL
+      WHERE razorpay_subscription_id = ? AND id = ?
+    `;
+
+    const [userResult] = await db.execute(updateUserQuery, [subscription_id, user_id]);
+
+    if (userResult.affectedRows === 0) {
+      console.log("No matching user found for subscription cancel");
+      return res.status(404).json({
+        success: false,
+        message: 'User subscription not found'
+      });
+    }
+
+    // 4. Send Email Notification
+    if (customerEmail) {
+      const mailOptions = {
+        from: ADMIN_EMAIL,
+        to: customerEmail,
+        subject: `Your ${plan_name} Subscription Has Been Cancelled`,
+        html: `
+          <p>Hello ${customerName},</p>
+           <p>Your <strong>${plan_name}</strong> subscription has been cancelled successfully.</p>
+          <p>If this wasn't you or you want to resume again, feel free to contact support.</p>
+          <p>Thank you.</p>
+        `
+      };
+
+      try {
+        await transporter.sendMail(mailOptions);
+        // console.log("Cancellation email sent to:", customerEmail);
+      } catch (emailError) {
+        console.error("Failed to send cancellation email:", emailError);
+      }
+    } else {
+      console.log("Customer does not have an email in Razorpay.");
+    }
+
+    // 5. Final API Response
+    res.json({
+      success: true,
+      message: 'Subscription cancelled successfully and email sent',
+      subscription
+    });
+
+  } catch (error) {
+    console.error('Error cancelling subscription:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cancel subscription'
+    });
+  }
+});
+
+router.get("/customer/:customer_id", async (req, res) => {
+  try {
+    const { customer_id } = req.params;
+
+    console.log("Fetching Razorpay customer:", customer_id);
+
+    const customer = await razorpay.customers.fetch(customer_id);
+
+    console.log("Customer Details:", customer);
+
+    res.json({
+      success: true,
+      customer
+    });
+
+  } catch (error) {
+    console.error("Error fetching customer:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch customer details",
+      error: error.error || error
+    });
   }
 });
 

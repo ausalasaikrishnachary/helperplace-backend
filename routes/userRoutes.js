@@ -5,6 +5,7 @@ const { sendOnboardingEmails } = require('./emailService');
 const crypto = require('crypto');
 const { sendOtpEmail } = require('./emailService'); // You'll need to implement this
 const { sendProfileRejectedEmail } = require('./emailService');
+const razorpay = require("./razorpay");
 
 // OTP storage (in production, use Redis or database)
 const otpStore = new Map();
@@ -115,48 +116,79 @@ router.post('/verify-otp', async (req, res) => {
 });
 
 // Create a new user (with OTP verification)
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   const {
-    email, mobile_number, password, first_name, last_name,
-    role, source, location, language_preference, agency_uid,
-    agency_mail, // Added agency_mail from payload
-    otp // OTP from client
+    email,
+    mobile_number,
+    password,
+    first_name,
+    last_name,
+    role,
+    source,
+    location,
+    language_preference,
+    agency_uid,
+    agency_mail,
+    otp,
   } = req.body;
 
   try {
-    // Check if OTP was verified for this email
+    // ✅ Step 1: Verify OTP
     const storedOtpData = otpStore.get(email);
-
     if (!storedOtpData || !storedOtpData.verified) {
-      return res.status(400).json({ message: 'Email not verified with OTP' });
+      return res.status(400).json({ message: "Email not verified with OTP" });
     }
 
-    // Check if email already exists (double check)
-    const [existingUser] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
+    // ✅ Step 2: Check if user already exists
+    const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
     if (existingUser.length > 0) {
-      return res.status(400).json({ message: 'Email already registered' });
+      return res.status(400).json({ message: "Email already registered" });
     }
 
+    // ✅ Step 3: Create customer in Razorpay
+    const customerPayload = {
+      name: `${first_name || ""} ${last_name || ""}`.trim(),
+      email: email,
+      contact: mobile_number ? String(mobile_number) : undefined,
+    };
+
+    const razorpayCustomer = await razorpay.customers.create(customerPayload);
+    const customer_id = razorpayCustomer.id;
+
+    // ✅ Step 4: Insert user into MySQL including Razorpay customer_id
     const query = `
       INSERT INTO users (
         email, mobile_number, password, first_name, last_name, 
-        role, source, location, language_preference, agency_uid, agency_mail, is_verified
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        role, source, location, language_preference, agency_uid, 
+        agency_mail, is_verified, customer_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.query(query, [
-      email, mobile_number, password, first_name, last_name,
-      role, source, location, language_preference, agency_uid, agency_mail,
-      1 // is_verified set to true since we verified with OTP
+      email,
+      mobile_number,
+      password,
+      first_name,
+      last_name,
+      role,
+      source,
+      location,
+      language_preference,
+      agency_uid,
+      agency_mail,
+      1, // is_verified
+      customer_id,
     ]);
 
-    // Send welcome email
+    // ✅ Step 5: Send onboarding email
     await sendOnboardingEmails(email, first_name, last_name, role);
 
-    // Clear OTP data after successful registration
+    // ✅ Step 6: Clear OTP after success
     otpStore.delete(email);
 
+    // ✅ Step 7: Send response
     res.status(201).json({
+      message: "User registered successfully",
       id: result.insertId,
       email,
       mobile_number,
@@ -167,13 +199,13 @@ router.post('/', async (req, res) => {
       location,
       language_preference,
       agency_uid,
-      agency_mail, // Include agency_mail in the response
-      is_verified: true
+      agency_mail,
+      is_verified: true,
+      customer_id,
     });
-
   } catch (err) {
-    console.error('Error:', err);
-    res.status(500).json({ error: err.message });
+    console.error("Error:", err);
+    res.status(500).json({ error: err.error?.description || err.message });
   }
 });
 
@@ -236,6 +268,7 @@ router.post('/login', async (req, res) => {
         message: 'Login successful',
         user: {
           id: user.id,
+          customer_id:user.customer_id,
           email: user.email,
           mobile_number: user.mobile_number,
           first_name: user.first_name,

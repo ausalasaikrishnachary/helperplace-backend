@@ -5,6 +5,10 @@ const nodemailer = require('nodemailer');
 const ADMIN_EMAIL = 'gulfworker01@gmail.com';
 const ADMIN_APP_PASSWORD = 'ubcb okcm ckne xapq';
 
+
+// const ADMIN_EMAIL = 'gulfworker01@gmail.com';
+// const ADMIN_APP_PASSWORD = 'ubcb okcm ckne xapq';
+
 // Create transporter with better configuration
 const transporter = nodemailer.createTransport({
     service: 'gmail',
