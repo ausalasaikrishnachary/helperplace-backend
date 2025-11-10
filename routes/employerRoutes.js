@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const emailService = require('./emailService');
 const razorpay = require("./razorpay");
+const { transporter, ADMIN_EMAIL } = require('./nodemailer');
 
 // Ensure images folder exists with proper path resolution
 const imagesDir = path.join(__dirname, '..', 'images');
@@ -775,17 +776,13 @@ router.get("/employer/columns-percentage/:id", async (req, res) => {
 // ✅ Helper: Convert ISO Date String to MySQL DateTime format
 function convertToMySQLDateTime(dateString) {
   if (!dateString) return null;
-
   const date = new Date(dateString);
-
   if (isNaN(date.getTime())) {
     console.warn("⚠️ Invalid date passed to convertToMySQLDateTime:", dateString);
     return null;
   }
-
   return date.toISOString().slice(0, 19).replace("T", " ");
 }
-
 
 // ✅ Helper: Convert UNIX timestamp (seconds) to dd/mm/yyyy
 function formatUnixDate(timestamp) {
@@ -809,7 +806,7 @@ router.post("/subscription/create", async (req, res) => {
     // ✅ Extract numeric value from plan_days like "7 Days" → 7
     const planDays = parseInt(plan_days);
     if (isNaN(planDays) || planDays <= 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         message: "Invalid plan_days value. Expected format like '7 Days'.",
       });
@@ -819,7 +816,7 @@ router.post("/subscription/create", async (req, res) => {
     const startAt = Math.floor(Date.now() / 1000) + 60;
 
     // ✅ Calculate next due & expiry in seconds
-    const nextDueSeconds = planDays * 24 * 60 * 60; 
+    const nextDueSeconds = planDays * 24 * 60 * 60;
     const totalCount = Math.ceil(365 / planDays);
     const expireBy = startAt + nextDueSeconds * totalCount;
 
@@ -954,32 +951,42 @@ router.put("/subscription/users/:id", async (req, res) => {
   }
 });
 
-// In your backend routes
 router.post('/subscription/cancel', async (req, res) => {
   try {
-    const { subscription_id, user_id } = req.body;
+    const { subscription_id, user_id, customer_id, plan_name } = req.body;
 
-    if (!subscription_id || !user_id) {
+    if (!subscription_id || !user_id || !customer_id) {
+      console.log("Missing required fields");
       return res.status(400).json({
         success: false,
-        message: 'Subscription ID and User ID are required'
+        message: 'Subscription ID, User ID and Customer ID are required'
       });
     }
 
-    // Cancel subscription in Razorpay
-    const subscription = await razorpay.subscriptions.cancel(subscription_id);
+    // 1. Fetch customer details to get email
+    console.log("Fetching Razorpay customer:", customer_id);
+    const customer = await razorpay.customers.fetch(customer_id);
+    console.log("Customer Details:", customer);
 
-    // Update users table - set all subscription fields as NULL
+    const customerEmail = customer.email;
+    const customerName = customer.name || "Customer";
+
+    // 2. Cancel subscription on Razorpay
+    const subscription = await razorpay.subscriptions.cancel(subscription_id);
+    // console.log("Razorpay Cancel Response:", subscription);
+
+    // 3. Update DB
     const updateUserQuery = `
       UPDATE users 
       SET 
         subscription_plan_id = NULL,
         subscription = NULL,
-        plan_id = NULL,
+        razorpay_plan_id = NULL,
         plan_name = NULL,
         plan_days = NULL,
         plan_startdate = NULL,
         plan_enddate = NULL,
+        next_duedate = NULL,
         payment_status = NULL,
         payment_amount = NULL,
         razorpay_subscription_id = NULL,
@@ -990,21 +997,74 @@ router.post('/subscription/cancel', async (req, res) => {
     const [userResult] = await db.execute(updateUserQuery, [subscription_id, user_id]);
 
     if (userResult.affectedRows === 0) {
+      console.log("No matching user found for subscription cancel");
       return res.status(404).json({
         success: false,
         message: 'User subscription not found'
       });
     }
+
+    // 4. Send Email Notification
+    if (customerEmail) {
+      const mailOptions = {
+        from: ADMIN_EMAIL,
+        to: customerEmail,
+        subject: `Your ${plan_name} Subscription Has Been Cancelled`,
+        html: `
+          <p>Hello ${customerName},</p>
+           <p>Your <strong>${plan_name}</strong> subscription has been cancelled successfully.</p>
+          <p>If this wasn't you or you want to resume again, feel free to contact support.</p>
+          <p>Thank you.</p>
+        `
+      };
+
+      try {
+        await transporter.sendMail(mailOptions);
+        // console.log("Cancellation email sent to:", customerEmail);
+      } catch (emailError) {
+        console.error("Failed to send cancellation email:", emailError);
+      }
+    } else {
+      console.log("Customer does not have an email in Razorpay.");
+    }
+
+    // 5. Final API Response
     res.json({
       success: true,
-      message: 'Subscription cancelled successfully',
+      message: 'Subscription cancelled successfully and email sent',
       subscription
     });
+
   } catch (error) {
     console.error('Error cancelling subscription:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to cancel subscription'
+    });
+  }
+});
+
+router.get("/customer/:customer_id", async (req, res) => {
+  try {
+    const { customer_id } = req.params;
+
+    console.log("Fetching Razorpay customer:", customer_id);
+
+    const customer = await razorpay.customers.fetch(customer_id);
+
+    console.log("Customer Details:", customer);
+
+    res.json({
+      success: true,
+      customer
+    });
+
+  } catch (error) {
+    console.error("Error fetching customer:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch customer details",
+      error: error.error || error
     });
   }
 });
