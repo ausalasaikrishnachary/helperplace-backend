@@ -891,12 +891,12 @@ router.put("/subscription/users/:id", async (req, res) => {
 
     // console.log("🟡 Updating User Subscription:", req.body);
 
-    if (!plan_id || !customer_id) {
-      return res.status(400).json({
-        success: false,
-        message: "plan_id and customer_id are required",
-      });
-    }
+    // if (!plan_id || !customer_id) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "plan_id and customer_id are required",
+    //   });
+    // }
 
     // ✅ Convert to MySQL DateTime
     const mysqlPlanStartDate = convertToMySQLDateTime(plan_startdate);
