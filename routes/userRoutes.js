@@ -3,17 +3,12 @@ const router = express.Router();
 const db = require('../db');
 const { sendOnboardingEmails } = require('./emailService');
 const crypto = require('crypto');
-const { sendOtpEmail } = require('./emailService'); // You'll need to implement this
+const { sendOtpEmail } = require('./emailService');
 const { sendProfileRejectedEmail } = require('./emailService');
 const razorpay = require("./razorpay");
 
 // OTP storage (in production, use Redis or database)
 const otpStore = new Map();
-
-// Generate random 6-digit OTP
-// const generateOtp = () => {
-//   return crypto.randomInt(100000, 999999).toString();
-// };
 
 // Get all users
 router.get('/', async (req, res) => {
@@ -452,6 +447,100 @@ router.post('/google-auth', async (req, res) => {
   } catch (err) {
     console.error('Google authentication error:', err);
     res.status(500).json({ error: err.message || 'Google authentication failed' });
+  }
+});
+
+// GET API to fetch next_duedate column value from users table
+router.get('/next-duedate/all', async (req, res) => {
+  try {
+    const [results] = await db.query(`
+      SELECT 
+        id,
+        email,
+        first_name,
+        plan_name,
+        next_duedate
+      FROM users 
+      WHERE next_duedate IS NOT NULL
+      ORDER BY next_duedate ASC
+    `);
+
+    res.json({
+      success: true,
+      data: results,
+      total: results.length
+    });
+  } catch (err) {
+    console.error('Error fetching next_duedate data:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to fetch next_duedate data'
+    });
+  }
+});
+
+// GET API to fetch next_duedate and send payment reminders
+router.get('/payment-reminders/send', async (req, res) => {
+  try {
+    const { sendPaymentDueDateReminder } = require('./emailService');
+    
+    // Fetch users with next_duedate values
+    const [users] = await db.query(`
+      SELECT 
+        id,
+        email,
+        first_name,
+        plan_name,
+        next_duedate
+      FROM users 
+      WHERE next_duedate IS NOT NULL
+    `);
+
+    console.log(`Found ${users.length} users with next_duedate values`);
+
+    let paymentRemindersSent = 0;
+    const today = new Date();
+    const twoDaysBefore = new Date();
+    twoDaysBefore.setDate(today.getDate() + 2);
+    
+    // Format date for comparison
+    const twoDaysBeforeStr = twoDaysBefore.toISOString().split('T')[0];
+
+    // Send payment due reminders for users with next_duedate exactly 2 days from today
+    for (const user of users) {
+      const userDueDateStr = new Date(user.next_duedate).toISOString().split('T')[0];
+      
+      if (userDueDateStr === twoDaysBeforeStr) {
+        const sent = await sendPaymentDueDateReminder(
+          user.email,
+          user.first_name,
+          user.plan_name || 'Silver', // Default plan name if null
+          10.00, // Default amount
+          user.next_duedate
+        );
+        
+        if (sent) {
+          paymentRemindersSent++;
+          console.log(`Sent payment due reminder to user ${user.email}`);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Payment due date reminders processed successfully',
+      data: {
+        paymentRemindersSent,
+        totalUsersChecked: users.length,
+        dueDateChecked: twoDaysBeforeStr
+      }
+    });
+  } catch (err) {
+    console.error('Error in payment reminders API:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to process payment reminders'
+    });
   }
 });
 

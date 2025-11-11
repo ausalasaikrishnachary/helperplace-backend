@@ -7,12 +7,7 @@ const cron = require('node-cron');
 const emailService = require('./routes/emailService');
 const db = require('./db');
 
-
 const port = 5000;
-
-
-
-
 
 // Middleware
 app.use(cors());
@@ -65,15 +60,27 @@ app.use("/", trainingRoutes);
 app.use("/", shortListRoutes);
 require('./routes/inactivityChecker');
 
-// Schedule daily subscription reminder at 1:30 PM IST (08:00 AM UTC)
 // ✅ Schedule daily subscription reminder at 1:30 PM IST
-cron.schedule('04 17 * * *', async () => {
-  console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
+// cron.schedule('30 13 * * *', async () => {
+//   console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
+//   try {
+//     const result = await emailService.checkAndSendSubscriptionReminders(db);
+//     console.log('✅ Subscription reminders processed:', result);
+//   } catch (err) {
+//     console.error('❌ Error in scheduled subscription reminders:', err); 
+//   }
+// }, {
+//   timezone: 'Asia/Kolkata'
+// });
+
+// ✅ Schedule daily payment due date reminder at 10:00 AM IST
+cron.schedule('05 20 * * *', async () => {
+  console.log('⏰ [IST] Running scheduled payment due date reminders at 10:00 AM');
   try {
-    const result = await emailService.checkAndSendSubscriptionReminders(db);
-    console.log('✅ Subscription reminders processed:', result);
+    const result = await emailService.checkAndSendPaymentDueDateReminders(db);
+    console.log('✅ Payment due date reminders processed:', result);
   } catch (err) {
-    console.error('❌ Error in scheduled subscription reminders:', err); 
+    console.error('❌ Error in scheduled payment due date reminders:', err); 
   }
 }, {
   timezone: 'Asia/Kolkata'
