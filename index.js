@@ -7,7 +7,7 @@ const cron = require('node-cron');
 const emailService = require('./routes/emailService');
 const db = require('./db');
 
-const port = 5000;
+const port = 5001;
 
 // Middleware
 app.use(cors());
