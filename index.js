@@ -5,9 +5,16 @@ const app = express();
 const path = require('path');
 const cron = require('node-cron');
 const emailService = require('./routes/emailService');
-const db = require('./db');
+const crypto = require("crypto");
+require("dotenv").config();
+const db = require("./db");
 
 const port = 5001;
+
+app.use(
+  "/webhook/razorpay",
+  express.raw({ type: "*/*" })   // captures raw body only for this route
+);
 
 // Middleware
 app.use(cors());
@@ -39,6 +46,7 @@ const Tips = require('./routes/TipsRoutes');
 const News = require('./routes/NewsRoutes');
 const trainingRoutes = require('./routes/trainingRoutes');
 const shortListRoutes = require('./routes/shortListRoutes');
+const webhookRoutes = require("./routes/webhook");
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
@@ -58,6 +66,8 @@ app.use('/', forgotpassword);
 app.use('/api', paynowroutes);
 app.use("/", trainingRoutes);
 app.use("/", shortListRoutes);
+app.use("/", webhookRoutes);
+
 require('./routes/inactivityChecker');
 
 // ✅ Schedule daily subscription reminder at 1:30 PM IST

@@ -966,7 +966,7 @@ router.post('/subscription/cancel', async (req, res) => {
     // 1. Fetch customer details to get email
     console.log("Fetching Razorpay customer:", customer_id);
     const customer = await razorpay.customers.fetch(customer_id);
-    console.log("Customer Details:", customer);
+    // console.log("Customer Details:", customer);
 
     const customerEmail = customer.email;
     const customerName = customer.name || "Customer";

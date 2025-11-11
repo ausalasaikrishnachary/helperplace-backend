@@ -46,13 +46,14 @@ router.post("/subscriptionplans", async (req, res) => {
     full_contact_details,
     activate_deactivate_option,
   } = req.body;
-  console.log("Requested body=",req.body)
+
+  console.log("Requested body=", req.body);
 
   try {
     let period = "monthly";
     let interval = 1;
 
-    // 🔹 Map days to a valid period + interval combination Razorpay supports
+    // 🔹 Determine period and interval based on listing_duration_days
     if (listing_duration_days >= 365) {
       period = "yearly";
       interval = 1;
@@ -65,32 +66,38 @@ router.post("/subscriptionplans", async (req, res) => {
       interval = Math.floor(listing_duration_days / 7);
       if (interval < 1) interval = 1;
     } else {
-      // For <7 days, Razorpay doesn't allow daily <7,
-      // So we’ll make it a single weekly plan.
       period = "weekly";
       interval = 1;
     }
 
-    // 🔹 Create plan in Razorpay
-    const razorpayPlan = await razorpay.plans.create({
-      period,
-      interval,
-      item: {
-        name: plan_name,
-        description: `Subscription plan: ${plan_name} for ${listing_duration_days} days`,
-        amount: Math.round(Number(price) * 100), // amount in paise
-        currency: currency || "USD",
-      },
-      notes: {
-        listing_duration_days,
-        created_from: "Node backend",
-      },
-    });
+    let razorpayPlanId = null;
 
-    // 🔹 Insert plan into MySQL (now includes plan_id & period)
+    // ✅ Skip Razorpay creation if it's a Free plan
+    if (plan_name.toLowerCase() !== "free") {
+      const razorpayPlan = await razorpay.plans.create({
+        period,
+        interval,
+        item: {
+          name: plan_name,
+          description: `Subscription plan: ${plan_name} for ${listing_duration_days} days`,
+          amount: Math.round(Number(price) * 100), // amount in paise
+          currency: currency || "USD",
+        },
+        notes: {
+          listing_duration_days,
+          created_from: "Node backend",
+        },
+      });
+
+      razorpayPlanId = razorpayPlan.id;
+    }
+
+    // 🔹 Insert plan into MySQL
     const query = `
       INSERT INTO subscription_plans (
+        plan_id,
         plan_name,
+        period,
         listing_duration_days,
         access_type,
         job_position_priority,
@@ -99,22 +106,21 @@ router.post("/subscriptionplans", async (req, res) => {
         direct_call_access,
         share_option,
         view_limit,
-        contact_details,
-        candidate_contact_details,
         alerts_for_new_cvs,
+        full_contact_details,
+        activate_deactivate_option,
         currency,
         price,
         limit_count,
-        full_contact_details,
-        activate_deactivate_option,
-        plan_id,
-        period
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-
+        contact_details,
+        candidate_contact_details
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.query(query, [
+      razorpayPlanId, // may be null for Free plan
       plan_name,
+      period,
       listing_duration_days,
       access_type,
       job_position_priority,
@@ -123,25 +129,24 @@ router.post("/subscriptionplans", async (req, res) => {
       direct_call_access,
       share_option,
       view_limit,
-      contact_details,
-      candidate_contact_details,
       alerts_for_new_cvs,
+      full_contact_details,
+      activate_deactivate_option,
       currency,
       price,
       limit_count,
-      full_contact_details,
-      activate_deactivate_option,
-      razorpayPlan.id,
-      period,
+      contact_details,
+      candidate_contact_details,
     ]);
 
     res.status(201).json({
-      message: "Subscription plan created successfully",
+      message: plan_name.toLowerCase() === "free"
+        ? "Free plan created successfully (no Razorpay plan created)"
+        : "Subscription plan created successfully",
       mysql_id: result.insertId,
-      razorpay_plan_id: razorpayPlan.id,
+      razorpay_plan_id: razorpayPlanId,
       period,
       interval,
-      plan_details: razorpayPlan,
     });
   } catch (err) {
     console.error("Error creating plan:", err);
@@ -150,6 +155,7 @@ router.post("/subscriptionplans", async (req, res) => {
     });
   }
 });
+
 
 
 // Update subscription plan
@@ -198,7 +204,7 @@ router.put('/subscriptionplans/:id', async (req, res) => {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
-    
+
     await db.query(query, [
       plan_name,
       listing_duration_days,
