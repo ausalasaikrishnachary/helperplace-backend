@@ -5,14 +5,16 @@ const app = express();
 const path = require('path');
 const cron = require('node-cron');
 const emailService = require('./routes/emailService');
-const db = require('./db');
-
+const crypto = require("crypto");
+require("dotenv").config();
+const db = require("./db");
 
 const port = 5000;
 
-
-
-
+app.use(
+  "/webhook/razorpay",
+  express.raw({ type: "*/*" })   // captures raw body only for this route
+);
 
 // Middleware
 app.use(cors());
@@ -44,6 +46,7 @@ const Tips = require('./routes/TipsRoutes');
 const News = require('./routes/NewsRoutes');
 const trainingRoutes = require('./routes/trainingRoutes');
 const shortListRoutes = require('./routes/shortListRoutes');
+const webhookRoutes = require("./routes/webhook");
 
 app.use('/', userRoutes);
 app.use('/api', jobSeekerRoutes);
@@ -63,11 +66,13 @@ app.use('/', forgotpassword);
 app.use('/api', paynowroutes);
 app.use("/", trainingRoutes);
 app.use("/", shortListRoutes);
+app.use("/", webhookRoutes);
+
 require('./routes/inactivityChecker');
 
-// Schedule daily subscription reminder at 1:30 PM IST (08:00 AM UTC)
 // ✅ Schedule daily subscription reminder at 1:30 PM IST
 // cron.schedule('52 16 * * *', async () => {
+// cron.schedule('30 13 * * *', async () => {
 //   console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
 //   try {
 //     const result = await emailService.checkAndSendSubscriptionReminders(db);
@@ -78,6 +83,21 @@ require('./routes/inactivityChecker');
 // }, {
 //   timezone: 'Asia/Kolkata'
 // });
+
+
+// ✅ Schedule daily payment due date reminder at 10:00 AM IST
+cron.schedule('05 20 * * *', async () => {
+  console.log('⏰ [IST] Running scheduled payment due date reminders at 10:00 AM');
+  try {
+    const result = await emailService.checkAndSendPaymentDueDateReminders(db);
+    console.log('✅ Payment due date reminders processed:', result);
+  } catch (err) {
+    console.error('❌ Error in scheduled payment due date reminders:', err); 
+  }
+}, {
+  timezone: 'Asia/Kolkata'
+});
+
 
 // Start server
 app.listen(port, () => {

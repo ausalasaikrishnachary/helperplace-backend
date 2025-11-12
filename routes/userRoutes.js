@@ -3,16 +3,12 @@ const router = express.Router();
 const db = require('../db');
 const { sendOnboardingEmails } = require('./emailService');
 const crypto = require('crypto');
-const { sendOtpEmail } = require('./emailService'); // You'll need to implement this
+const { sendOtpEmail } = require('./emailService');
 const { sendProfileRejectedEmail } = require('./emailService');
+const razorpay = require("./razorpay");
 
 // OTP storage (in production, use Redis or database)
 const otpStore = new Map();
-
-// Generate random 6-digit OTP
-// const generateOtp = () => {
-//   return crypto.randomInt(100000, 999999).toString();
-// };
 
 // Get all users
 router.get('/', async (req, res) => {
@@ -59,13 +55,13 @@ router.post('/send-reg-otp', async (req, res) => {
     // Generate and store OTP (valid for 10 minutes)
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
-    
+
     otpStore.set(email, { otp, expiresAt });
 
     // Send OTP email
     await sendOtpEmail(email, otp);
 
-    res.json({ 
+    res.json({
       message: 'OTP sent successfully',
       expiresAt: expiresAt.toISOString()
     });
@@ -103,7 +99,7 @@ router.post('/verify-otp', async (req, res) => {
     // OTP is valid - mark email as verified in our temporary store
     otpStore.set(email, { ...storedOtpData, verified: true });
 
-    res.json({ 
+    res.json({
       message: 'OTP verified successfully',
       verified: true
     });
@@ -115,48 +111,79 @@ router.post('/verify-otp', async (req, res) => {
 });
 
 // Create a new user (with OTP verification)
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   const {
-    email, mobile_number, password, first_name, last_name,
-    role, source, location, language_preference, agency_uid,
-    agency_mail, // Added agency_mail from payload
-    otp // OTP from client
+    email,
+    mobile_number,
+    password,
+    first_name,
+    last_name,
+    role,
+    source,
+    location,
+    language_preference,
+    agency_uid,
+    agency_mail,
+    otp,
   } = req.body;
 
   try {
-    // Check if OTP was verified for this email
+    // ✅ Step 1: Verify OTP
     const storedOtpData = otpStore.get(email);
-
     if (!storedOtpData || !storedOtpData.verified) {
-      return res.status(400).json({ message: 'Email not verified with OTP' });
+      return res.status(400).json({ message: "Email not verified with OTP" });
     }
 
-    // Check if email already exists (double check)
-    const [existingUser] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
+    // ✅ Step 2: Check if user already exists
+    const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
     if (existingUser.length > 0) {
-      return res.status(400).json({ message: 'Email already registered' });
+      return res.status(400).json({ message: "Email already registered" });
     }
 
+    // ✅ Step 3: Create customer in Razorpay
+    const customerPayload = {
+      name: `${first_name || ""} ${last_name || ""}`.trim(),
+      email: email,
+      contact: mobile_number ? String(mobile_number) : undefined,
+    };
+
+    const razorpayCustomer = await razorpay.customers.create(customerPayload);
+    const customer_id = razorpayCustomer.id;
+
+    // ✅ Step 4: Insert user into MySQL including Razorpay customer_id
     const query = `
       INSERT INTO users (
         email, mobile_number, password, first_name, last_name, 
-        role, source, location, language_preference, agency_uid, agency_mail, is_verified
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        role, source, location, language_preference, agency_uid, 
+        agency_mail, is_verified, customer_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    
+
     const [result] = await db.query(query, [
-      email, mobile_number, password, first_name, last_name,
-      role, source, location, language_preference, agency_uid, agency_mail,
-      1 // is_verified set to true since we verified with OTP
+      email,
+      mobile_number,
+      password,
+      first_name,
+      last_name,
+      role,
+      source,
+      location,
+      language_preference,
+      agency_uid,
+      agency_mail,
+      1, // is_verified
+      customer_id,
     ]);
 
-    // Send welcome email
+    // ✅ Step 5: Send onboarding email
     await sendOnboardingEmails(email, first_name, last_name, role);
 
-    // Clear OTP data after successful registration
+    // ✅ Step 6: Clear OTP after success
     otpStore.delete(email);
 
+    // ✅ Step 7: Send response
     res.status(201).json({
+      message: "User registered successfully",
       id: result.insertId,
       email,
       mobile_number,
@@ -167,13 +194,13 @@ router.post('/', async (req, res) => {
       location,
       language_preference,
       agency_uid,
-      agency_mail, // Include agency_mail in the response
-      is_verified: true
+      agency_mail,
+      is_verified: true,
+      customer_id,
     });
-
   } catch (err) {
-    console.error('Error:', err);
-    res.status(500).json({ error: err.message });
+    console.error("Error:", err);
+    res.status(500).json({ error: err.error?.description || err.message });
   }
 });
 
@@ -188,7 +215,7 @@ router.put('/:id', async (req, res) => {
       WHERE id = ?
     `;
     await db.query(query, [
-      email, mobile_number, password, first_name, last_name, 
+      email, mobile_number, password, first_name, last_name,
       location, language_preference, id
     ]);
     res.json({ message: 'User updated successfully' });
@@ -225,17 +252,18 @@ router.post('/login', async (req, res) => {
 
     if (userResults.length > 0) {
       const user = userResults[0];
-      
+
       // Update login activity for the user
       await db.query(
         'UPDATE users SET last_login_date = NOW() WHERE id = ?',
         [user.id]
       );
-      
+
       return res.json({
         message: 'Login successful',
         user: {
           id: user.id,
+          customer_id:user.customer_id,
           email: user.email,
           mobile_number: user.mobile_number,
           first_name: user.first_name,
@@ -244,7 +272,7 @@ router.post('/login', async (req, res) => {
           is_verified: user.is_verified,
           created_at: user.created_at,
           user_type: user.role,
-          plan_name:user.plan_name,
+          plan_name: user.plan_name,
           plan_startdate: user.plan_startdate,
           plan_enddate: user.plan_enddate
         }
@@ -259,13 +287,13 @@ router.post('/login', async (req, res) => {
 
     if (agencyResults.length > 0) {
       const agencyUser = agencyResults[0];
-      
+
       // Update login activity for agency user
       await db.query(
         'UPDATE agency_user SET last_login_date = NOW() WHERE id = ?',
         [agencyUser.id]
       );
-      
+
       return res.json({
         message: 'Login successful',
         user: {
@@ -278,6 +306,9 @@ router.post('/login', async (req, res) => {
           is_verified: agencyUser.is_verified,
           created_at: agencyUser.created_at,
           user_type: agencyUser.role,
+          plan_name: agencyUser.plan_name,
+          plan_startdate: agencyUser.plan_startdate,
+          plan_enddate: agencyUser.plan_enddate
         }
       });
     }
@@ -292,10 +323,10 @@ router.post('/login', async (req, res) => {
 
 router.post('/api/send-rejection-email', async (req, res) => {
   const { email, firstName } = req.body;
-  
+
   // Validate required fields
   if (!email || !firstName) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
       message: 'Both email and firstName are required'
     });
@@ -303,13 +334,13 @@ router.post('/api/send-rejection-email', async (req, res) => {
 
   try {
     await sendProfileRejectedEmail(email, firstName);
-    res.json({ 
+    res.json({
       success: true,
-      message: 'Rejection email sent successfully' 
+      message: 'Rejection email sent successfully'
     });
   } catch (err) {
     console.error('Error sending rejection email:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: err.message || 'Failed to send rejection email'
     });
@@ -340,13 +371,13 @@ router.post('/google-auth', async (req, res) => {
 
     if (userResults.length > 0) {
       const user = userResults[0];
-      
+
       // Update login activity for the user
       await db.query(
         'UPDATE users SET last_login_date = NOW() WHERE id = ?',
         [user.id]
       );
-      
+
       return res.json({
         message: 'Login successful',
         user: {
@@ -358,18 +389,18 @@ router.post('/google-auth', async (req, res) => {
           role: user.role,
           is_verified: user.is_verified,
           created_at: user.created_at,
-          user_type: 'general' 
+          user_type: 'general'
         }
       });
     } else if (agencyResults.length > 0) {
       const agencyUser = agencyResults[0];
-      
+
       // Update login activity for agency user
       await db.query(
         'UPDATE agency_user SET last_login_date = NOW() WHERE id = ?',
         [agencyUser.id]
       );
-      
+
       return res.json({
         message: 'Login successful',
         user: {
@@ -392,7 +423,7 @@ router.post('/google-auth', async (req, res) => {
           role, is_verified, source
         ) VALUES (?, ?, ?, 'job seeker', 1, 'google')
       `;
-      
+
       const [result] = await db.query(query, [
         email, firstName, lastName
       ]);
@@ -416,6 +447,100 @@ router.post('/google-auth', async (req, res) => {
   } catch (err) {
     console.error('Google authentication error:', err);
     res.status(500).json({ error: err.message || 'Google authentication failed' });
+  }
+});
+
+// GET API to fetch next_duedate column value from users table
+router.get('/next-duedate/all', async (req, res) => {
+  try {
+    const [results] = await db.query(`
+      SELECT 
+        id,
+        email,
+        first_name,
+        plan_name,
+        next_duedate
+      FROM users 
+      WHERE next_duedate IS NOT NULL
+      ORDER BY next_duedate ASC
+    `);
+
+    res.json({
+      success: true,
+      data: results,
+      total: results.length
+    });
+  } catch (err) {
+    console.error('Error fetching next_duedate data:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to fetch next_duedate data'
+    });
+  }
+});
+
+// GET API to fetch next_duedate and send payment reminders
+router.get('/payment-reminders/send', async (req, res) => {
+  try {
+    const { sendPaymentDueDateReminder } = require('./emailService');
+    
+    // Fetch users with next_duedate values
+    const [users] = await db.query(`
+      SELECT 
+        id,
+        email,
+        first_name,
+        plan_name,
+        next_duedate
+      FROM users 
+      WHERE next_duedate IS NOT NULL
+    `);
+
+    console.log(`Found ${users.length} users with next_duedate values`);
+
+    let paymentRemindersSent = 0;
+    const today = new Date();
+    const twoDaysBefore = new Date();
+    twoDaysBefore.setDate(today.getDate() + 2);
+    
+    // Format date for comparison
+    const twoDaysBeforeStr = twoDaysBefore.toISOString().split('T')[0];
+
+    // Send payment due reminders for users with next_duedate exactly 2 days from today
+    for (const user of users) {
+      const userDueDateStr = new Date(user.next_duedate).toISOString().split('T')[0];
+      
+      if (userDueDateStr === twoDaysBeforeStr) {
+        const sent = await sendPaymentDueDateReminder(
+          user.email,
+          user.first_name,
+          user.plan_name || 'Silver', // Default plan name if null
+          10.00, // Default amount
+          user.next_duedate
+        );
+        
+        if (sent) {
+          paymentRemindersSent++;
+          console.log(`Sent payment due reminder to user ${user.email}`);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Payment due date reminders processed successfully',
+      data: {
+        paymentRemindersSent,
+        totalUsersChecked: users.length,
+        dueDateChecked: twoDaysBeforeStr
+      }
+    });
+  } catch (err) {
+    console.error('Error in payment reminders API:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to process payment reminders'
+    });
   }
 });
 

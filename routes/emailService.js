@@ -237,7 +237,6 @@ const sendLowViewsReminder = async (to, firstName, jobTitle, viewCount) => {
     return transporter.sendMail(mailOptions);
 };
 
-
 // 🔟 Contact Form Confirmation Email
 const sendContactFormConfirmation = async (to, name) => {
     const mailOptions = {
@@ -311,11 +310,11 @@ const sendIncompleteProfileReminder = async (to, firstName, completionPercentage
         return false;
     }
 
-const mailOptions = {
-  from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
-  to,
-  subject: 'Complete Your Profile to Get More Visibility',
-  html: `
+    const mailOptions = {
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: 'Complete Your Profile to Get More Visibility',
+        html: `
     <p>Hi ${firstName},</p>
     <p>We noticed your profile is only ${completionPercentage}% complete!</p>
     <p>Complete your profile to:</p>
@@ -337,7 +336,7 @@ const mailOptions = {
     </p>
     <p>Best regards,<br/>Gulf Hepler Team</p>
   `
-};
+    };
 
     return transporter.sendMail(mailOptions);
 };
@@ -379,6 +378,43 @@ const sendPlanUpgradeEmailToJobSeeker = async (to, firstName, currentPlan, endDa
         return true;
     } catch (error) {
         console.error(`Error sending upgrade email to ${to}:`, error);
+        return false;
+    }
+};
+
+// 🔟 Payment Due Date Reminder
+const sendPaymentDueDateReminder = async (to, firstName, planName, amount, dueDate) => {
+    // Skip if no valid email address
+    if (!to || typeof to !== 'string' || !to.includes('@')) {
+        console.log(`Skipping payment due date reminder - invalid recipient: ${to}`);
+        return false;
+    }
+
+    const formattedDate = new Date(dueDate).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+    });
+
+    const mailOptions = {
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: `Payment Due Reminder for Your ${planName} Plan`,
+        html: `
+      <p>Dear ${firstName},</p>
+      <p>Payment of Rs.${amount.toFixed(2)} for your Gudnet ${planName} plan is due on ${formattedDate}.</p>
+      <p>The amount will be debited from your credit card/bank account. Please maintain sufficient balance.</p>
+      <p>Team Gudnet</p>
+      <p>Best regards,<br/>Gulf Hepler Team</p>
+    `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Payment due date reminder sent to ${to}`);
+        return true;
+    } catch (error) {
+        console.error(`Error sending payment due date reminder to ${to}:`, error);
         return false;
     }
 };
@@ -426,6 +462,64 @@ const checkAndSendLowViewsReminders = async (db) => {
     }
 };
 
+// Check and send payment due date reminders - SIMPLIFIED VERSION
+const checkAndSendPaymentDueDateReminders = async (db) => {
+    try {
+        const { sendPaymentDueDateReminder } = require('./emailService');
+
+        // Fetch users with next_duedate values
+        const [users] = await db.query(`
+            SELECT 
+                id,
+                email,
+                first_name,
+                plan_name,
+                next_duedate
+            FROM users 
+            WHERE next_duedate IS NOT NULL
+        `);
+
+        console.log(`Found ${users.length} users with next_duedate values`);
+
+        let paymentRemindersSent = 0;
+        const today = new Date();
+        const twoDaysBefore = new Date();
+        twoDaysBefore.setDate(today.getDate() + 2);
+
+        // Format date for comparison
+        const twoDaysBeforeStr = twoDaysBefore.toISOString().split('T')[0];
+
+        // Send payment due reminders for users with next_duedate exactly 2 days from today
+        for (const user of users) {
+            const userDueDateStr = new Date(user.next_duedate).toISOString().split('T')[0];
+
+            if (userDueDateStr === twoDaysBeforeStr) {
+                const sent = await sendPaymentDueDateReminder(
+                    user.email,
+                    user.first_name,
+                    user.plan_name || 'Silver', // Default plan name if null
+                    10.00, // Default amount
+                    user.next_duedate
+                );
+
+                if (sent) {
+                    paymentRemindersSent++;
+                    console.log(`Sent payment due reminder to user ${user.email}`);
+                }
+            }
+        }
+
+        return {
+            paymentRemindersSent,
+            totalUsersChecked: users.length,
+            dueDateChecked: twoDaysBeforeStr
+        };
+    } catch (err) {
+        console.error('Error in payment due date reminders:', err);
+        throw err;
+    }
+};
+
 const checkAndSendSubscriptionReminders = async (db) => {
     try {
         const today = new Date();
@@ -461,7 +555,7 @@ const checkAndSendSubscriptionReminders = async (db) => {
                 jobSeeker.subscription_plan,
                 jobSeeker.plan_enddate
             );
-            
+
             if (sent) {
                 // Update last sent date
                 await db.execute(
@@ -487,7 +581,7 @@ const checkAndSendSubscriptionReminders = async (db) => {
                 employer.name,
                 employer.columns_percentage
             );
-            
+
             // Update last sent date
             await db.execute(
                 `UPDATE employer SET last_incomplete_reminder_sent = NOW() WHERE id = ?`,
@@ -515,7 +609,7 @@ const checkAndSendSubscriptionReminders = async (db) => {
                     job_seeker.first_name,
                     job_seeker.columns_percentage
                 );
-                
+
                 // Update last sent date
                 await db.execute(
                     `UPDATE job_seekers SET last_incomplete_reminder_sent = NOW() WHERE user_id = ?`,
@@ -568,7 +662,7 @@ const checkAndSendSubscriptionReminders = async (db) => {
                 employer.name,
                 employer.plan_enddate
             );
-            
+
             // Mark as sent for this expiry period
             await db.execute(
                 `UPDATE employer SET last_expiry_reminder_sent = NOW() WHERE user_id = ?`,
@@ -606,7 +700,7 @@ const checkAndSendSubscriptionReminders = async (db) => {
                 employer.name,
                 employer.plan_enddate
             );
-            
+
             // Mark as sent
             await db.execute(
                 `UPDATE employer SET last_trial_ending_reminder_sent = NOW() WHERE user_id = ?`,
@@ -626,7 +720,7 @@ const checkAndSendSubscriptionReminders = async (db) => {
                     employer.plan_name,
                     employer.plan_enddate
                 );
-                
+
                 // Update last sent date
                 await db.execute(
                     `UPDATE employer SET last_upgrade_suggestion_sent = NOW() WHERE user_id = ?`,
@@ -652,7 +746,7 @@ const checkAndSendSubscriptionReminders = async (db) => {
                 "Your Profile/Post",
                 employer.view_count
             );
-            
+
             // Update last sent date
             await db.execute(
                 `UPDATE employer SET last_low_views_reminder_sent = NOW() WHERE id = ?`,
@@ -676,7 +770,7 @@ const checkAndSendSubscriptionReminders = async (db) => {
                 job_seeker.email_id,
                 job_seeker.first_name
             );
-            
+
             // Update last sent date
             await db.execute(
                 `UPDATE job_seekers SET last_whatsapp_reminder_sent = NOW() WHERE user_id = ?`,
@@ -801,8 +895,10 @@ module.exports = {
     sendSubscriptionRenewalConfirmation,
     sendPlanUpgradeSuggestion,
     sendLowViewsReminder,
+    sendPaymentDueDateReminder,
     checkAndSendSubscriptionReminders,
     checkAndSendLowViewsReminders,
+    checkAndSendPaymentDueDateReminders,
     sendInactivityNotification,
     sendProfileRejectedEmail,
     sendProfileVerifiedEmail,
