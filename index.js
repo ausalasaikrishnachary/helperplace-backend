@@ -71,6 +71,7 @@ app.use("/", webhookRoutes);
 require('./routes/inactivityChecker');
 
 // ✅ Schedule daily subscription reminder at 1:30 PM IST
+// cron.schedule('52 16 * * *', async () => {
 // cron.schedule('30 13 * * *', async () => {
 //   console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
 //   try {
@@ -82,6 +83,7 @@ require('./routes/inactivityChecker');
 // }, {
 //   timezone: 'Asia/Kolkata'
 // });
+
 
 // ✅ Schedule daily payment due date reminder at 10:00 AM IST
 cron.schedule('05 20 * * *', async () => {
@@ -95,6 +97,7 @@ cron.schedule('05 20 * * *', async () => {
 }, {
   timezone: 'Asia/Kolkata'
 });
+
 
 // Start server
 app.listen(port, () => {

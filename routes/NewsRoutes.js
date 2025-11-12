@@ -1,4 +1,4 @@
-// routes/NewsRoutes.js
+// routes/NewsRoutes.js - Updated with better error handling
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    cb(null, 'news-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
@@ -32,7 +32,7 @@ const upload = multer({
     }
   },
   limits: {
-    fileSize: 5 * 1024 * 1024
+    fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
 
@@ -58,9 +58,10 @@ router.post('/upload', upload.single('image'), async (req, res) => {
 // Get all news articles
 router.get('/news/all', async (req, res) => {
   try {
-    const [results] = await db.query('SELECT * FROM news');
+    const [results] = await db.query('SELECT * FROM news ORDER BY created_at DESC');
     res.json(results);
   } catch (err) {
+    console.error('Error fetching news:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -70,9 +71,12 @@ router.get('/news/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const [results] = await db.query('SELECT * FROM news WHERE id = ?', [id]);
-    if (results.length === 0) return res.status(404).json({ message: 'News article not found' });
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'News article not found' });
+    }
     res.json(results[0]);
   } catch (err) {
+    console.error('Error fetching news by ID:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -87,6 +91,7 @@ router.get('/news/category/:category', async (req, res) => {
     );
     res.json(results);
   } catch (err) {
+    console.error('Error fetching news by category:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -107,8 +112,8 @@ router.post('/news', async (req, res) => {
     tags
   } = req.body;
 
-  if (!title || !category || !publish_date || !excerpt || !content) {
-    return res.status(400).json({ error: 'Missing required fields' });
+  if (!title || !category || !excerpt || !content) {
+    return res.status(400).json({ error: 'Missing required fields: title, category, excerpt, content' });
   }
 
   try {
@@ -131,7 +136,7 @@ router.post('/news', async (req, res) => {
     const [result] = await db.query(query, [
       title,
       category,
-      publish_date,
+      publish_date || new Date(),
       read_time || '5 min read',
       excerpt,
       content,
@@ -148,7 +153,7 @@ router.post('/news', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Error:', err);
+    console.error('Error creating news:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -169,6 +174,10 @@ router.put('/news/:id', async (req, res) => {
     meta_description,
     tags
   } = req.body;
+
+  if (!title || !category || !excerpt || !content) {
+    return res.status(400).json({ error: 'Missing required fields: title, category, excerpt, content' });
+  }
 
   try {
     const [checkResults] = await db.query('SELECT * FROM news WHERE id = ?', [id]);
@@ -210,6 +219,7 @@ router.put('/news/:id', async (req, res) => {
 
     res.json({ message: 'News article updated successfully' });
   } catch (err) {
+    console.error('Error updating news:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -226,18 +236,17 @@ router.delete('/news/:id', async (req, res) => {
     await db.query('DELETE FROM news WHERE id = ?', [id]);
     res.json({ message: 'News article deleted successfully' });
   } catch (err) {
+    console.error('Error deleting news:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Get published news only - FIXED ENDPOINT
+// Get published news only
 router.get('/news/published/all', async (req, res) => {
   try {
-    console.log('Fetching published news...');
     const [results] = await db.query(
       'SELECT * FROM news WHERE status = "published" ORDER BY publish_date DESC, created_at DESC'
     );
-    console.log('Published news results:', results);
     res.json(results);
   } catch (err) {
     console.error('Error fetching published news:', err);
