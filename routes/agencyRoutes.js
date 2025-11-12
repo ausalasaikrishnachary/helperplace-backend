@@ -33,8 +33,73 @@ const upload = multer({
 ]);
 
 // POST - Create new agency with file uploads
-router.post('/agency', (req, res, next) => {
-  upload(req, res, function (err) {
+// router.post('/agency', (req, res, next) => {
+//   upload(req, res, function (err) {
+//     if (err) {
+//       console.error('Upload error:', err);
+//       return res.status(400).json({ 
+//         success: false,
+//         error: 'File upload failed',
+//         details: err.message 
+//       });
+//     }
+
+//     try {
+//       // Safely get file paths and convert to relative paths
+//       const files = req.files || {};
+//       const filePaths = {
+//         company_logo: files.company_logo?.[0] ? path.join('uploads', path.basename(files.company_logo[0].path)) : null,
+//         business_card: files.business_card?.[0] ? path.join('uploads', path.basename(files.business_card[0].path)) : null,
+//         license_copy: files.license_copy?.[0] ? path.join('uploads', path.basename(files.license_copy[0].path)) : null,
+//         owner_photo: files.owner_photo?.[0] ? path.join('uploads', path.basename(files.owner_photo[0].path)) : null,
+//         manager_photo: files.manager_photo?.[0] ? path.join('uploads', path.basename(files.manager_photo[0].path)) : null
+//       };
+
+//       const agencyData = {
+//         ...req.body,
+//         ...filePaths,
+//         created_at: new Date(),
+//         updated_at: new Date()
+//       };
+
+//       const query = 'INSERT INTO agency_user SET ?';
+//       db.query(query, agencyData, (err, result) => {
+//         if (err) {
+//           console.error('Database error:', err);
+//           // Clean up uploaded files if DB operation fails
+//           Object.values(files).forEach(fileArray => {
+//             if (fileArray && fileArray[0] && fs.existsSync(fileArray[0].path)) {
+//               fs.unlinkSync(fileArray[0].path);
+//             }
+//           });
+//           return res.status(500).json({ 
+//             success: false,
+//             error: 'Database operation failed',
+//             details: err.message 
+//           });
+//         }
+//         res.status(201).json({ 
+//           success: true,
+//           message: 'Agency created successfully',
+//           id: result.insertId 
+//         });
+//       });
+//     } catch (error) {
+//       console.error('Server error:', error);
+//       res.status(500).json({
+//         success: false,
+//         error: 'Internal server error',
+//         details: error.message
+//       });
+//     }
+//   });
+// });
+
+
+// Agency registration endpoint
+// Agency registration endpoint with file uploads
+router.post('/agency', (req, res) => {
+  upload(req, res, async function (err) {
     if (err) {
       console.error('Upload error:', err);
       return res.status(400).json({ 
@@ -45,7 +110,33 @@ router.post('/agency', (req, res, next) => {
     }
 
     try {
-      // Safely get file paths and convert to relative paths
+      // Now req.body should contain all the form fields
+      const {
+        agency_name, city, province, country, full_address,
+        whatsapp_number_1, whatsapp_number_2, whatsapp_number_3, whatsapp_number_4,
+        official_phone, email, website_url, owner_name, owner_nationality,
+        owner_mobile, owner_email, manager_name, manager_nationality,
+        manager_mobile, manager_email, password, role
+      } = req.body;
+
+      // Validate required fields
+      if (!agency_name || !email || !password) {
+        return res.status(400).json({ error: 'Required fields are missing' });
+      }
+
+      // Check if email already exists in agency_user table
+      const [existingAgency] = await db.query('SELECT id FROM agency_user WHERE email = ?', [email]);
+      if (existingAgency.length > 0) {
+        return res.status(400).json({ error: 'Email already registered' });
+      }
+
+      // Check if OTP was verified for this email
+      const storedOtpData = otpStore.get(email);
+      if (!storedOtpData || !storedOtpData.verified) {
+        return res.status(400).json({ error: 'Email not verified with OTP' });
+      }
+
+      // Get file paths
       const files = req.files || {};
       const filePaths = {
         company_logo: files.company_logo?.[0] ? path.join('uploads', path.basename(files.company_logo[0].path)) : null,
@@ -55,45 +146,64 @@ router.post('/agency', (req, res, next) => {
         manager_photo: files.manager_photo?.[0] ? path.join('uploads', path.basename(files.manager_photo[0].path)) : null
       };
 
-      const agencyData = {
-        ...req.body,
-        ...filePaths,
-        created_at: new Date(),
-        updated_at: new Date()
-      };
+      // Insert into agency_user table with file paths
+      const query = `
+        INSERT INTO agency_user (
+          agency_name, city, province, country, full_address,
+          whatsapp_number_1, whatsapp_number_2, whatsapp_number_3, whatsapp_number_4,
+          official_phone, email, website_url, owner_name, owner_nationality,
+          owner_mobile, owner_email, manager_name, manager_nationality,
+          manager_mobile, manager_email, password, role, is_verified,
+          company_logo, business_card, license_copy, owner_photo, manager_photo,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      `;
+      
+      const [result] = await db.query(query, [
+        agency_name, city, province, country, full_address,
+        whatsapp_number_1, whatsapp_number_2 || '', whatsapp_number_3 || '', whatsapp_number_4 || '',
+        official_phone, email, website_url || '', owner_name, owner_nationality,
+        owner_mobile, owner_email, manager_name, manager_nationality,
+        manager_mobile, manager_email, password, role || 'agency_admin', 1,
+        filePaths.company_logo, filePaths.business_card, filePaths.license_copy, 
+        filePaths.owner_photo, filePaths.manager_photo
+      ]);
 
-      const query = 'INSERT INTO agency_user SET ?';
-      db.query(query, agencyData, (err, result) => {
-        if (err) {
-          console.error('Database error:', err);
-          // Clean up uploaded files if DB operation fails
-          Object.values(files).forEach(fileArray => {
-            if (fileArray && fileArray[0] && fs.existsSync(fileArray[0].path)) {
-              fs.unlinkSync(fileArray[0].path);
-            }
-          });
-          return res.status(500).json({ 
-            success: false,
-            error: 'Database operation failed',
-            details: err.message 
-          });
+      // Send welcome email
+      await sendOnboardingEmails(email, owner_name, '', 'agency_admin');
+
+      // Clear OTP data after successful registration
+      otpStore.delete(email);
+
+      res.status(201).json({
+        id: result.insertId,
+        message: 'Agency registered successfully',
+        agency: {
+          id: result.insertId,
+          agency_name,
+          email,
+          role: 'agency_admin',
+          is_verified: true
         }
-        res.status(201).json({ 
-          success: true,
-          message: 'Agency created successfully',
-          id: result.insertId 
+      });
+
+    } catch (err) {
+      console.error('Error registering agency:', err);
+      
+      // Clean up uploaded files if there was an error
+      if (req.files) {
+        Object.values(req.files).forEach(fileArray => {
+          if (fileArray && fileArray[0] && fs.existsSync(fileArray[0].path)) {
+            fs.unlinkSync(fileArray[0].path);
+          }
         });
-      });
-    } catch (error) {
-      console.error('Server error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Internal server error',
-        details: error.message
-      });
+      }
+      
+      res.status(500).json({ error: err.message || 'Registration failed' });
     }
   });
 });
+
 
 // GET - All agencies
 router.get('/agency', async (req, res) => {
