@@ -86,7 +86,7 @@ require('./routes/inactivityChecker');
 
 
 // ✅ Schedule daily payment due date reminder at 10:00 AM IST
-cron.schedule('05 20 * * *', async () => {
+cron.schedule('05 08 * * *', async () => {
   console.log('⏰ [IST] Running scheduled payment due date reminders at 10:00 AM');
   try {
     const result = await emailService.checkAndSendPaymentDueDateReminders(db);
