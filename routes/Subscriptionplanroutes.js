@@ -50,62 +50,41 @@ router.post("/subscriptionplans", async (req, res) => {
   console.log("Requested body=", req.body);
 
   try {
-    // Convert listing_duration_days to number
-    let days = Number(listing_duration_days);
-
-    if (!days || days <= 0) {
-      return res.status(400).json({
-        error: "Invalid listing_duration_days. It must be a valid number.",
-      });
-    }
-
-    // ----------------------------
-    // PERIOD & INTERVAL LOGIC
-    // ----------------------------
-    let period = "daily";
+    let period = "monthly";
     let interval = 1;
 
-    if (days < 7) {
-      // Example: 1 to 6 days → daily
-      period = "daily";
-      interval = days;
-    } else if (days === 7) {
-      // Exactly 7 days → weekly
+    // 🔹 Determine period and interval based on listing_duration_days
+    if (listing_duration_days >= 365) {
+      period = "yearly";
+      interval = 1;
+    } else if (listing_duration_days >= 90) {
+      period = "monthly";
+      interval = Math.floor(listing_duration_days / 30);
+      if (interval < 1) interval = 1;
+    } else if (listing_duration_days >= 7) {
+      period = "weekly";
+      interval = Math.floor(listing_duration_days / 7);
+      if (interval < 1) interval = 1;
+    } else {
       period = "weekly";
       interval = 1;
-    } else if (days > 7 && days < 30) {
-      // Example: 8–29 days → weekly split
-      period = "weekly";
-      interval = Math.floor(days / 7);
-      if (interval < 1) interval = 1;
-    } else if (days === 30) {
-      // Exactly 30 → monthly
-      period = "monthly";
-      interval = 1;
-    } else if (days > 30) {
-      // Example: 31+ days → monthly split
-      period = "monthly";
-      interval = Math.floor(days / 30);
-      if (interval < 1) interval = 1;
     }
 
     let razorpayPlanId = null;
 
-    // ----------------------------
-    //  CREATE RAZORPAY PLAN (SKIP IF FREE)
-    // ----------------------------
+    // ✅ Skip Razorpay creation if it's a Free plan
     if (plan_name.toLowerCase() !== "free") {
       const razorpayPlan = await razorpay.plans.create({
         period,
         interval,
         item: {
           name: plan_name,
-          description: `Subscription plan: ${plan_name} for ${days} days`,
-          amount: Math.round(Number(price) * 100), // convert to paise
+          description: `Subscription plan: ${plan_name} for ${listing_duration_days} days`,
+          amount: Math.round(Number(price) * 100), // amount in paise
           currency: currency || "USD",
         },
         notes: {
-          listing_duration_days: days,
+          listing_duration_days,
           created_from: "Node backend",
         },
       });
@@ -113,9 +92,7 @@ router.post("/subscriptionplans", async (req, res) => {
       razorpayPlanId = razorpayPlan.id;
     }
 
-    // ----------------------------
-    //  SAVE PLAN IN DATABASE
-    // ----------------------------
+    // 🔹 Insert plan into MySQL
     const query = `
       INSERT INTO subscription_plans (
         plan_id,
@@ -141,10 +118,10 @@ router.post("/subscriptionplans", async (req, res) => {
     `;
 
     const [result] = await db.query(query, [
-      razorpayPlanId,
+      razorpayPlanId, // may be null for Free plan
       plan_name,
       period,
-      days,
+      listing_duration_days,
       access_type,
       job_position_priority,
       messaging_limit,
@@ -162,14 +139,10 @@ router.post("/subscriptionplans", async (req, res) => {
       candidate_contact_details,
     ]);
 
-    // ----------------------------
-    //  RESPONSE
-    // ----------------------------
     res.status(201).json({
-      message:
-        plan_name.toLowerCase() === "free"
-          ? "Free plan created successfully (no Razorpay plan created)"
-          : "Subscription plan created successfully",
+      message: plan_name.toLowerCase() === "free"
+        ? "Free plan created successfully (no Razorpay plan created)"
+        : "Subscription plan created successfully",
       mysql_id: result.insertId,
       razorpay_plan_id: razorpayPlanId,
       period,
@@ -182,7 +155,6 @@ router.post("/subscriptionplans", async (req, res) => {
     });
   }
 });
-
 
 
 
