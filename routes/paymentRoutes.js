@@ -66,8 +66,8 @@ router.post("/verify-payment", (req, res) => {
     razorpay_signature
   } = req.body;
 
-  const key_secret = "YH5qifp0nv6z1m0ItHD3vQ3F";
-  // const key_secret = "wAjLz2kbMonqvDkhqyoHnXpf";
+  // const key_secret = "YH5qifp0nv6z1m0ItHD3vQ3F";
+  const key_secret = "wAjLz2kbMonqvDkhqyoHnXpf";
 
   const generated = crypto
     .createHmac("sha256", key_secret)

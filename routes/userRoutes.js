@@ -140,17 +140,21 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ message: "Email already registered" });
     }
 
-    // ✅ Step 3: Create customer in Razorpay
-    const customerPayload = {
-      name: `${first_name || ""} ${last_name || ""}`.trim(),
-      email: email,
-      contact: mobile_number ? String(mobile_number) : undefined,
-    };
+    let customer_id = null; // default null
 
-    const razorpayCustomer = await razorpay.customers.create(customerPayload);
-    const customer_id = razorpayCustomer.id;
+    // ✅ Step 3: Create Razorpay customer only for employer role
+    if (role?.toLowerCase() === "employer") {
+      const customerPayload = {
+        name: `${first_name || ""} ${last_name || ""}`.trim(),
+        email: email,
+        contact: mobile_number ? String(mobile_number) : undefined,
+      };
 
-    // ✅ Step 4: Insert user into MySQL including Razorpay customer_id
+      const razorpayCustomer = await razorpay.customers.create(customerPayload);
+      customer_id = razorpayCustomer.id;
+    }
+
+    // ✅ Step 4: Insert user into MySQL (include customer_id if any)
     const query = `
       INSERT INTO users (
         email, mobile_number, password, first_name, last_name, 
@@ -203,6 +207,7 @@ router.post("/", async (req, res) => {
     res.status(500).json({ error: err.error?.description || err.message });
   }
 });
+
 
 // Update user
 router.put('/:id', async (req, res) => {
@@ -263,7 +268,7 @@ router.post('/login', async (req, res) => {
         message: 'Login successful',
         user: {
           id: user.id,
-          customer_id:user.customer_id,
+          customer_id: user.customer_id,
           email: user.email,
           mobile_number: user.mobile_number,
           first_name: user.first_name,
@@ -483,7 +488,7 @@ router.get('/next-duedate/all', async (req, res) => {
 router.get('/payment-reminders/send', async (req, res) => {
   try {
     const { sendPaymentDueDateReminder } = require('./emailService');
-    
+
     // Fetch users with next_duedate values
     const [users] = await db.query(`
       SELECT 
@@ -502,14 +507,14 @@ router.get('/payment-reminders/send', async (req, res) => {
     const today = new Date();
     const twoDaysBefore = new Date();
     twoDaysBefore.setDate(today.getDate() + 2);
-    
+
     // Format date for comparison
     const twoDaysBeforeStr = twoDaysBefore.toISOString().split('T')[0];
 
     // Send payment due reminders for users with next_duedate exactly 2 days from today
     for (const user of users) {
       const userDueDateStr = new Date(user.next_duedate).toISOString().split('T')[0];
-      
+
       if (userDueDateStr === twoDaysBeforeStr) {
         const sent = await sendPaymentDueDateReminder(
           user.email,
@@ -518,7 +523,7 @@ router.get('/payment-reminders/send', async (req, res) => {
           10.00, // Default amount
           user.next_duedate
         );
-        
+
         if (sent) {
           paymentRemindersSent++;
           console.log(`Sent payment due reminder to user ${user.email}`);
