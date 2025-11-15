@@ -5,7 +5,8 @@ const db = mysql.createPool({
   user: "root",
   password: "",
   database: "Gudnet",
-  port: 3306
+  // port: 3306
+  port: 4306
 });
 
 

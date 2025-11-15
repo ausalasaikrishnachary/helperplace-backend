@@ -17,10 +17,10 @@ const sendThanksEmail = async (to, firstName) => {
     const mailOptions = {
         from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
-        subject: 'Thanks for joining Gudnet!',
+        subject: 'Thanks for joining Gulf Worker!',
         html: `
       <p>Hi ${firstName},</p>
-      <p>Thank you for registering with <strong>Gudnet</strong>. We're glad to have you onboard!</p>
+      <p>Thank you for registering with <strong>Gulf Worker</strong>. We're glad to have you onboard!</p>
       <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
     };
@@ -42,7 +42,7 @@ const sendWelcomeEmail = async (to, firstName, lastName, role = 'employer') => {
         htmlContent = htmlContent.replace(
             /<p style="max-width:600px; margin: 0 auto;">([\s\S]*?)<\/p>/,
             `<p style="max-width:600px; margin: 0 auto;">
-        Welcome to the Gudnet community! Start by updating your resume to stand out to employers.
+        Welcome to the Gulf Worker community! Start by updating your resume to stand out to employers.
         Browse job offers and connect with families and agencies looking for someone like you.
       </p>`
         );
@@ -56,7 +56,7 @@ const sendWelcomeEmail = async (to, firstName, lastName, role = 'employer') => {
     const mailOptions = {
         from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
         to,
-        subject: 'Welcome to Gudnet!',
+        subject: 'Welcome to GulfWorker!',
         html: htmlContent
     };
 
@@ -71,7 +71,7 @@ const sendOtpEmail = async (to, otp) => {
         subject: 'Your Verification Code',
         html: `
       <p>Hello,</p>
-      <p>Your verification code for Gudnet is:</p>
+      <p>Your verification code for GulfWorker is:</p>
       <h2 style="margin: 20px 0; color: #2563eb; font-size: 28px;">${otp}</h2>
       <p>This code will expire in 10 minutes.</p>
       <p>If you didn't request this code, please ignore this email.</p>
@@ -90,7 +90,7 @@ const sendSubscriptionExpiryReminder = async (to, firstName, endDate) => {
         subject: 'Your Subscription is About to Expire',
         html: `
       <p>Hi ${firstName},</p>
-      <p>Your Gudnet subscription will expire in one week (on ${formattedDate}).</p>
+      <p>Your GulfWorker subscription will expire in one week (on ${formattedDate}).</p>
       <p>To continue enjoying uninterrupted service, please renew your subscription.</p>
       <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
@@ -106,7 +106,7 @@ const sendSubscriptionExpiredNotification = async (to, firstName) => {
         subject: 'Your Subscription Has Expired',
         html: `
       <p>Hi ${firstName},</p>
-      <p>Your Gudnet subscription has now expired.</p>
+      <p>Your GulfWorker subscription has now expired.</p>
       <p>To continue using our services, please renew your subscription at your earliest convenience.</p>
       <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
@@ -139,7 +139,7 @@ const sendFreeTrialEndingReminder = async (to, firstName, endDate) => {
         subject: 'Your Free Trial is Ending Soon',
         html: `
       <p>Hi ${firstName},</p>
-      <p>Your Gudnet free trial will end tomorrow (on ${formattedDate}).</p>
+      <p>Your GulfWorker free trial will end tomorrow (on ${formattedDate}).</p>
       <p>Upgrade to a premium plan to continue posting jobs and accessing all features.</p>
       <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
@@ -156,7 +156,7 @@ const sendSubscriptionRenewalConfirmation = async (to, firstName, planName, endD
         subject: 'Subscription Renewal Confirmation',
         html: `
       <p>Hi ${firstName},</p>
-      <p>Your Gudnet subscription (${planName}) has been successfully renewed!</p>
+      <p>Your GulfWorker subscription (${planName}) has been successfully renewed!</p>
       <p>Your new subscription end date is ${formattedDate}.</p>
       <p>Thank you for continuing with us.</p>
       <p>Warm regards,<br/>Gulf Hepler Team</p>
@@ -245,7 +245,7 @@ const sendContactFormConfirmation = async (to, name) => {
         subject: 'We Received Your Message',
         html: `
       <p>Hi ${name},</p>
-      <p>Thank you for contacting Gudnet! We've received your message and our team will get back to you soon.</p>
+      <p>Thank you for contacting GulfWorker! We've received your message and our team will get back to you soon.</p>
       <p>Here's a summary of your inquiry:</p>
       <p><strong>We'll review your message and respond within 24-48 hours.</strong></p>
       <p>If your matter is urgent, please call us at +852-55057015.</p>
@@ -258,12 +258,12 @@ const sendContactFormConfirmation = async (to, name) => {
 // Send admin response email to user
 const sendAdminResponseEmail = async (to, userName, userMessage, adminResponse, ticketId) => {
     const mailOptions = {
-        from: `"Gudnet Support Team" <${ADMIN_EMAIL}>`,
+        from: `"GulfWorker Support Team" <${ADMIN_EMAIL}>`,
         to,
         subject: `Response to Your Support Ticket #${ticketId}`,
         html: `
       <p>Hi ${userName},</p>
-      <p>Thank you for contacting Gudnet support. Here is our response to your inquiry:</p>
+      <p>Thank you for contacting GulfWorker support. Here is our response to your inquiry:</p>
       
       <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
         <p><strong>Your original message:</strong></p>
@@ -276,7 +276,7 @@ const sendAdminResponseEmail = async (to, userName, userMessage, adminResponse, 
       </div>
       
       <p>If you have any further questions, please reply to this email or contact us at +852-55057015.</p>
-      <p>Best regards,<br/>Gudnet Support Team</p>
+      <p>Best regards,<br/>Gulf Worker Support Team</p>
       
       <p style="font-size: 12px; color: #6c757d; margin-top: 20px;">
         This is an automated response to your support ticket #${ticketId}. 
@@ -294,7 +294,7 @@ const sendProfileRejectedEmail = async (to, firstName) => {
         subject: 'Your Profile Has Been Rejected',
         html: `
       <p>Hi ${firstName},</p>
-      <p>We regret to inform you that your profile on Gudnet has been rejected and removed from our platform.</p>
+      <p>We regret to inform you that your profile on Gulf Worker has been rejected and removed from our platform.</p>
       <p>This decision was made after careful review by our team.</p>
       <p>If you believe this was a mistake or would like more information, please reply to this email.</p>
       <p>Best regards,<br/>Gulf Hepler Team</p>
@@ -402,9 +402,9 @@ const sendPaymentDueDateReminder = async (to, firstName, planName, amount, dueDa
         subject: `Payment Due Reminder for Your ${planName} Plan`,
         html: `
       <p>Dear ${firstName},</p>
-      <p>Payment of Rs.${amount.toFixed(2)} for your Gudnet ${planName} plan is due on ${formattedDate}.</p>
+      <p>Payment of Rs.${amount.toFixed(2)} for your Gulf Worker ${planName} plan is due on ${formattedDate}.</p>
       <p>The amount will be debited from your credit card/bank account. Please maintain sufficient balance.</p>
-      <p>Team Gudnet</p>
+      <p>Team Gulf Worker</p>
       <p>Best regards,<br/>Gulf Hepler Team</p>
     `
     };
@@ -803,7 +803,7 @@ const sendInactivityNotification = async (to, firstName, daysInactive) => {
         subject: `We Miss You! It's Been ${daysInactive} Days`,
         html: `
       <p>Hi ${firstName},</p>
-      <p>We noticed you haven't logged in to Gudnet for ${daysInactive} days.</p>
+      <p>We noticed you haven't logged in to Gulf Worker for ${daysInactive} days.</p>
       <p>We miss having you around! Log in now to check out new updates and opportunities.</p>
       <p>Warm regards,<br/>Gulf Hepler Team</p>
     `
@@ -818,7 +818,7 @@ const sendProfileVerifiedEmail = async (to, firstName) => {
         subject: 'Your Profile Has Been Verified!',
         html: `
       <p>Hi ${firstName},</p>
-      <p>We're pleased to inform you that your profile on Gudnet has been verified by our team!</p>
+      <p>We're pleased to inform you that your profile on Gulf Worker has been verified by our team!</p>
       <p>This verification badge will make your profile more visible to employers and increase your chances of getting hired.</p>
       <p>Log in to your account to see your verified status and explore new job opportunities.</p>
       <p>Best regards,<br/>Gulf Hepler Team</p>
@@ -835,7 +835,7 @@ const sendSubscriptionPlanChangeEmail = async (to, firstName, oldPlan, newPlan, 
         subject: 'Subscription Plan Change Confirmation',
         html: `
       <p>Hi ${firstName},</p>
-      <p>Your Gudnet subscription has been successfully changed from <strong>${oldPlan}</strong> to <strong>${newPlan}</strong>!</p>
+      <p>Your Gulf Worker subscription has been successfully changed from <strong>${oldPlan}</strong> to <strong>${newPlan}</strong>!</p>
       <p>Your new subscription end date is ${formattedDate}.</p>
       <p>Thank you for choosing a higher plan with us.</p>
       <p>Warm regards,<br/>Gulf Hepler Team</p>
@@ -851,7 +851,7 @@ const sendWhatsappNumberReminder = async (to, firstName) => {
         subject: 'Please Update Your WhatsApp Number',
         html: `
       <p>Hi ${firstName},</p>
-      <p>We noticed that you haven't provided your WhatsApp number in your Gudnet profile.</p>
+      <p>We noticed that you haven't provided your WhatsApp number in your Gulf Worker profile.</p>
       <p>Adding your WhatsApp number will help us send you important updates and notifications directly.</p>
       <p>Please log in to your account and update your profile with your WhatsApp number at your earliest convenience.</p>
       <p>Best regards,<br/>Gulf Hepler Team</p>
@@ -861,27 +861,42 @@ const sendWhatsappNumberReminder = async (to, firstName) => {
 };
 
 // New function for sending custom emails
+// In your emailService.js or apply route
 const sendCustomEmail = async (to_email, subject, message) => {
     if (!to_email || !subject || !message) {
+        console.log('❌ Email sending failed: Missing parameters');
         throw new Error('Invalid request. Please provide to_email, subject, and message');
     }
 
     try {
+        console.log(`📧 Attempting to send email to: ${to_email}`);
+        console.log(`📝 Subject: ${subject}`);
+        
         const mailOptions = {
             from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
             to: to_email,
             subject: subject,
             text: message,
-            html: `<p>${message}</p>`
+            html: message // Use the HTML content directly since you're sending HTML
         };
 
-        await transporter.sendMail(mailOptions);
-        return { success: true, message: 'Email sent successfully!' };
+        const result = await transporter.sendMail(mailOptions);
+        console.log('✅ Email sent successfully!');
+        console.log('📨 Message ID:', result.messageId);
+        console.log('✅ Response:', result.response);
+        
+        return { 
+            success: true, 
+            message: 'Email sent successfully!',
+            messageId: result.messageId,
+            response: result.response
+        };
     } catch (error) {
-        console.error('Error sending email:', error);
+        console.error('❌ Error sending email:', error);
         throw new Error('Failed to send email. Please try again later.');
     }
 };
+
 
 module.exports = {
     sendThanksEmail,
