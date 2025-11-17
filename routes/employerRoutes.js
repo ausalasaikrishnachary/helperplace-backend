@@ -96,85 +96,123 @@ function convertToMySQLDateTime(dateValue) {
 }
 
 // Function to prepare data for MySQL, handling dates, JSON, and boolean values
+// In your backend route file, update the prepareDataForMySQL function:
+
 function prepareDataForMySQL(data) {
-  const preparedData = { ...data };
+    const preparedData = { ...data };
 
-  // Handle date fields
-  const dateFields = [
-    'plan_startdate',
-    'plan_enddate',
-    'posted_on',
-    'job_starting_date'
-  ];
+    // Handle date fields
+    const dateFields = [
+        'plan_startdate',
+        'plan_enddate',
+        'posted_on'
+    ];
 
-  dateFields.forEach(field => {
-    if (preparedData[field] !== undefined && preparedData[field] !== null) {
-      preparedData[field] = convertToMySQLDateTime(preparedData[field]);
-    }
-  });
-
-  // Handle JSON fields - ensure they are properly stringified
-  jsonFields.forEach(field => {
-    if (preparedData[field] !== undefined && preparedData[field] !== null) {
-      if (typeof preparedData[field] === 'string') {
-        try {
-          // If it's already a JSON string, ensure it's valid
-          JSON.parse(preparedData[field]);
-          // If it parses successfully, keep it as is
-        } catch (e) {
-          // If it's not valid JSON, wrap it in array and stringify
-          preparedData[field] = JSON.stringify([preparedData[field]]);
+    dateFields.forEach(field => {
+        if (preparedData[field] !== undefined && preparedData[field] !== null) {
+            preparedData[field] = convertToMySQLDateTime(preparedData[field]);
         }
-      } else if (Array.isArray(preparedData[field])) {
-        // If it's an array, stringify it
-        preparedData[field] = JSON.stringify(preparedData[field]);
-      } else {
-        // For other types, stringify as array
-        preparedData[field] = JSON.stringify([preparedData[field]]);
-      }
+    });
+
+    // Special handling for job_starting_date
+    if (preparedData.job_starting_date !== undefined && preparedData.job_starting_date !== null) {
+        if (preparedData.job_starting_date === 'Immediately') {
+            // Store "Immediately" as a string
+            preparedData.job_starting_date = 'Immediately';
+        } else {
+            // Convert date string to MySQL format
+            preparedData.job_starting_date = convertToMySQLDateTime(preparedData.job_starting_date);
+        }
     }
-  });
 
-  // Handle boolean fields
-  const booleanFields = ['negotiable', 'have_pets', 'have_domestic_worker'];
-  booleanFields.forEach(field => {
-    if (preparedData[field] !== undefined && preparedData[field] !== null) {
-      if (typeof preparedData[field] === 'boolean') {
-        preparedData[field] = preparedData[field] ? 1 : 0;
-      } else if (typeof preparedData[field] === 'string') {
-        preparedData[field] = preparedData[field] === 'true' || preparedData[field] === '1' ? 1 : 0;
-      } else if (typeof preparedData[field] === 'number') {
-        preparedData[field] = preparedData[field] ? 1 : 0;
-      }
+    // Handle JSON fields - ensure they are properly stringified
+    jsonFields.forEach(field => {
+        if (preparedData[field] !== undefined && preparedData[field] !== null) {
+            if (typeof preparedData[field] === 'string') {
+                try {
+                    // If it's already a JSON string, ensure it's valid
+                    JSON.parse(preparedData[field]);
+                    // If it parses successfully, keep it as is
+                } catch (e) {
+                    // If it's not valid JSON, wrap it in array and stringify
+                    preparedData[field] = JSON.stringify([preparedData[field]]);
+                }
+            } else if (Array.isArray(preparedData[field])) {
+                // If it's an array, stringify it
+                preparedData[field] = JSON.stringify(preparedData[field]);
+            } else {
+                // For other types, stringify as array
+                preparedData[field] = JSON.stringify([preparedData[field]]);
+            }
+        }
+    });
+
+    // Handle boolean fields
+    const booleanFields = ['negotiable', 'have_pets', 'have_domestic_worker'];
+    booleanFields.forEach(field => {
+        if (preparedData[field] !== undefined && preparedData[field] !== null) {
+            if (typeof preparedData[field] === 'boolean') {
+                preparedData[field] = preparedData[field] ? 1 : 0;
+            } else if (typeof preparedData[field] === 'string') {
+                preparedData[field] = preparedData[field] === 'true' || preparedData[field] === '1' ? 1 : 0;
+            } else if (typeof preparedData[field] === 'number') {
+                preparedData[field] = preparedData[field] ? 1 : 0;
+            }
+        }
+    });
+
+    // Handle numeric fields
+    const numericFields = [
+        'gulf_experience_years',
+        'total_experience_years',
+        'minimum_monthly_salary',
+        'maximum_monthly_salary',
+        'adults',
+        'children',
+        'rooms',
+        'bathrooms',
+        'view_count',
+        'plan_days',
+        'payment_amount',
+        'columns_percentage'
+    ];
+
+    numericFields.forEach(field => {
+        if (preparedData[field] !== undefined && preparedData[field] !== null) {
+            if (typeof preparedData[field] === 'string') {
+                const num = parseFloat(preparedData[field]);
+                preparedData[field] = isNaN(num) ? 0 : num;
+            }
+        }
+    });
+
+    return preparedData;
+}
+
+// Update the convertToMySQLDateTime function to be more robust:
+function convertToMySQLDateTime(dateValue) {
+    if (!dateValue || dateValue === '' || dateValue === 'Immediately') {
+        return null;
     }
-  });
 
-  // Handle numeric fields
-  const numericFields = [
-    'gulf_experience_years',
-    'total_experience_years',
-    'minimum_monthly_salary',
-    'maximum_monthly_salary',
-    'adults',
-    'children',
-    'rooms',
-    'bathrooms',
-    'view_count',
-    'plan_days',
-    'payment_amount',
-    'columns_percentage'
-  ];
+    try {
+        // If it's already in MySQL format, return as is
+        if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateValue)) {
+            return dateValue;
+        }
 
-  numericFields.forEach(field => {
-    if (preparedData[field] !== undefined && preparedData[field] !== null) {
-      if (typeof preparedData[field] === 'string') {
-        const num = parseFloat(preparedData[field]);
-        preparedData[field] = isNaN(num) ? 0 : num;
-      }
+        // If it's an ISO string or Date object, convert to MySQL format
+        const date = new Date(dateValue);
+        if (isNaN(date.getTime())) {
+            console.warn('Invalid date passed to convertToMySQLDateTime:', dateValue);
+            return null;
+        }
+
+        return date.toISOString().slice(0, 19).replace('T', ' ');
+    } catch (error) {
+        console.error('Error converting date:', error);
+        return null;
     }
-  });
-
-  return preparedData;
 }
 
 // Function to calculate filled columns percentage
@@ -774,14 +812,18 @@ router.get("/employer/columns-percentage/:id", async (req, res) => {
 });
 
 // ✅ Helper: Convert ISO Date String to MySQL DateTime format
+// ✅ Helper: Convert ISO Date String to MySQL DateTime format
 function convertToMySQLDateTime(dateString) {
-  if (!dateString) return null;
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) {
-    console.warn("⚠️ Invalid date passed to convertToMySQLDateTime:", dateString);
-    return null;
-  }
-  return date.toISOString().slice(0, 19).replace("T", " ");
+    if (!dateString || dateString === '') {
+        return null;
+    }
+    
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+        console.warn("⚠️ Invalid date passed to convertToMySQLDateTime:", dateString);
+        return null;
+    }
+    return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
 // ✅ Helper: Convert UNIX timestamp (seconds) to dd/mm/yyyy
