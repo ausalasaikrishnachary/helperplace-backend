@@ -5,6 +5,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+const otpStore = new Map();
+
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -21,7 +23,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 }).fields([
@@ -31,6 +33,96 @@ const upload = multer({
   { name: 'owner_photo', maxCount: 1 },
   { name: 'manager_photo', maxCount: 1 }
 ]);
+
+
+// Generate OTP
+function generateOTP() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+// Send OTP endpoint
+router.post('/send-reg-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const otp = generateOTP();
+
+    // Store OTP with timestamp and verified flag
+    otpStore.set(email, {
+      otp,
+      createdAt: Date.now(),
+      verified: false
+    });
+
+    // TODO: Implement actual email sending here
+    console.log(`OTP for ${email}: ${otp}`); // Remove this in production
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP sent successfully'
+    });
+
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+});
+
+// Verify OTP endpoint
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email and OTP are required' });
+    }
+
+    const storedData = otpStore.get(email);
+
+    if (!storedData) {
+      return res.status(400).json({ error: 'OTP not found or expired' });
+    }
+
+    // Check if OTP is expired (10 minutes)
+    if (Date.now() - storedData.createdAt > 10 * 60 * 1000) {
+      otpStore.delete(email);
+      return res.status(400).json({ error: 'OTP has expired' });
+    }
+
+    if (storedData.otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
+    // Mark OTP as verified
+    storedData.verified = true;
+    otpStore.set(email, storedData);
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP verified successfully'
+    });
+
+  } catch (error) {
+    console.error('Error verifying OTP:', error);
+    res.status(500).json({ error: 'Failed to verify OTP' });
+  }
+});
+
+router.post('/check-otp-status', (req, res) => {
+  const { email } = req.body;
+  const storedData = otpStore.get(email);
+
+  res.json({
+    email,
+    storedData,
+    otpStoreSize: otpStore.size,
+    allEntries: Array.from(otpStore.entries())
+  });
+});
 
 // POST - Create new agency with file uploads
 // router.post('/agency', (req, res, next) => {
@@ -102,10 +194,10 @@ router.post('/agency', (req, res) => {
   upload(req, res, async function (err) {
     if (err) {
       console.error('Upload error:', err);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'File upload failed',
-        details: err.message 
+        details: err.message
       });
     }
 
@@ -131,10 +223,10 @@ router.post('/agency', (req, res) => {
       }
 
       // Check if OTP was verified for this email
-      const storedOtpData = otpStore.get(email);
-      if (!storedOtpData || !storedOtpData.verified) {
-        return res.status(400).json({ error: 'Email not verified with OTP' });
-      }
+      // const storedOtpData = otpStore.get(email);
+      // if (!storedOtpData || !storedOtpData.verified) {
+      //   return res.status(400).json({ error: 'Email not verified with OTP. Please complete OTP verification first.' });
+      // }
 
       // Get file paths
       const files = req.files || {};
@@ -158,19 +250,19 @@ router.post('/agency', (req, res) => {
           created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `;
-      
+
       const [result] = await db.query(query, [
         agency_name, city, province, country, full_address,
         whatsapp_number_1, whatsapp_number_2 || '', whatsapp_number_3 || '', whatsapp_number_4 || '',
         official_phone, email, website_url || '', owner_name, owner_nationality,
         owner_mobile, owner_email, manager_name, manager_nationality,
         manager_mobile, manager_email, password, role || 'agency_admin', 1,
-        filePaths.company_logo, filePaths.business_card, filePaths.license_copy, 
+        filePaths.company_logo, filePaths.business_card, filePaths.license_copy,
         filePaths.owner_photo, filePaths.manager_photo
       ]);
 
-      // Send welcome email
-      await sendOnboardingEmails(email, owner_name, '', 'agency_admin');
+      // Send welcome email (make sure sendOnboardingEmails function exists)
+      // await sendOnboardingEmails(email, owner_name, '', 'agency_admin');
 
       // Clear OTP data after successful registration
       otpStore.delete(email);
@@ -189,7 +281,7 @@ router.post('/agency', (req, res) => {
 
     } catch (err) {
       console.error('Error registering agency:', err);
-      
+
       // Clean up uploaded files if there was an error
       if (req.files) {
         Object.values(req.files).forEach(fileArray => {
@@ -198,7 +290,7 @@ router.post('/agency', (req, res) => {
           }
         });
       }
-      
+
       res.status(500).json({ error: err.message || 'Registration failed' });
     }
   });
@@ -233,7 +325,7 @@ router.put('/agency/:id', async (req, res) => {
   try {
     const fields = req.body;
     const keys = Object.keys(fields);
-    
+
     if (keys.length === 0) {
       return res.status(400).json({ error: 'No fields provided to update' });
     }
