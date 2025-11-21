@@ -224,9 +224,9 @@ router.post("/webhook/razorpay", async (req, res) => {
         }
 
         // ======================================================
-        //          PAYMENT SUCCESS EMAIL
+        //          PAYMENT EVENT EMAILS
         // ======================================================
-        if (eventType === "payment.captured" && customerEmail && customerName) {
+        if (paymentEvents.includes(eventType) && customerEmail && customerName) {
             try {
                 const todayDate = new Date().toLocaleDateString('en-IN', {
                     day: '2-digit',
@@ -234,44 +234,74 @@ router.post("/webhook/razorpay", async (req, res) => {
                     year: 'numeric'
                 });
 
-                const successMessage = `Dear ${customerName}, your payment of ${planCurrency} ${planAmount} for the Gudnet ${planNameFinal} plan has been successfully debited on ${todayDate}. Thank you for staying connected with Gudnet.`;
+                // Email templates for different payment events
+                const emailTemplates = {
+                    "payment.authorized": {
+                        subject: "Gudnet Payment Authorized",
+                        message: `Dear ${customerName}, your payment of ${planCurrency} ${planAmount} for the Gudnet ${planNameFinal} plan has been authorized on ${todayDate}. The amount will be captured shortly.`
+                    },
+                    "payment.captured": {
+                        subject: "Gudnet Payment Successful",
+                        message: `Dear ${customerName}, your payment of ${planCurrency} ${planAmount} for the Gudnet ${planNameFinal} plan has been successfully debited on ${todayDate}. Thank you for staying connected with Gudnet.`
+                    },
+                    "payment.failed": {
+                        subject: "Gudnet Payment Failed",
+                        message: `Dear ${customerName}, your payment for the Gudnet ${planNameFinal} plan on ${todayDate} has failed. Please update your payment method to avoid service interruption.`
+                    },
+                    "payment.dispute.created": {
+                        subject: "Payment Dispute Created",
+                        message: `Dear ${customerName}, a dispute has been created for your payment of ${planCurrency} ${planAmount} for the Gudnet ${planNameFinal} plan. We will keep you updated on the resolution.`
+                    },
+                    "payment.dispute.won": {
+                        subject: "Payment Dispute Resolved in Your Favor",
+                        message: `Dear ${customerName}, we're happy to inform you that the dispute for your payment of ${planCurrency} ${planAmount} has been resolved in your favor. Thank you for your patience.`
+                    },
+                    "payment.dispute.lost": {
+                        subject: "Payment Dispute Update",
+                        message: `Dear ${customerName}, the dispute for your payment of ${planCurrency} ${planAmount} has been resolved. Please contact our support team for more details.`
+                    },
+                    "payment.dispute.closed": {
+                        subject: "Payment Dispute Closed",
+                        message: `Dear ${customerName}, the dispute for your payment of ${planCurrency} ${planAmount} has been closed.`
+                    },
+                    "payment.dispute.under_review": {
+                        subject: "Payment Dispute Under Review",
+                        message: `Dear ${customerName}, your payment dispute for ${planCurrency} ${planAmount} is currently under review. We'll notify you once we have an update.`
+                    },
+                    "payment.dispute.action_required": {
+                        subject: "Action Required - Payment Dispute",
+                        message: `Dear ${customerName}, your attention is required for the payment dispute regarding ${planCurrency} ${planAmount}. Please check your email for further instructions.`
+                    },
+                    "payment.downtime.started": {
+                        subject: "Payment System Notice",
+                        message: `Dear ${customerName}, we've detected a temporary issue with our payment system. Your payment of ${planCurrency} ${planAmount} may be affected. We're working to resolve this.`
+                    },
+                    "payment.downtime.updated": {
+                        subject: "Payment System Update",
+                        message: `Dear ${customerName}, we have an update regarding the payment system issue. We're continuing to work on the resolution.`
+                    },
+                    "payment.downtime.resolved": {
+                        subject: "Payment System Restored",
+                        message: `Dear ${customerName}, the payment system issue has been resolved. Your payments should now process normally.`
+                    }
+                };
+
+                const template = emailTemplates[eventType] || {
+                    subject: `Gudnet Payment Update - ${eventType}`,
+                    message: `Dear ${customerName}, there's an update regarding your payment for the Gudnet ${planNameFinal} plan. Event: ${eventType}`
+                };
 
                 await transporter.sendMail({
                     from: ADMIN_EMAIL,
                     to: customerEmail,
-                    subject: "Gudnet Payment Successful",
-                    text: successMessage,
+                    subject: template.subject,
+                    text: template.message,
                 });
 
-                console.log("✅ Success email sent to:", customerEmail);
+                console.log(`📧 ${eventType} email sent to:`, customerEmail);
+
             } catch (err) {
-                console.error("❌ Success Email Error:", err);
-            }
-        }
-
-        // ======================================================
-        //          PAYMENT FAILED EMAIL
-        // ======================================================
-        if (eventType === "payment.failed" && customerEmail && customerName) {
-            try {
-                const todayDate = new Date().toLocaleDateString('en-IN', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                });
-
-                const failureMessage = `Dear ${customerName}, your payment for the Gudnet ${planNameFinal} plan on ${todayDate} has failed. Please update your payment method to avoid service interruption.`;
-
-                await transporter.sendMail({
-                    from: ADMIN_EMAIL,
-                    to: customerEmail,
-                    subject: "Gudnet Payment Failed",
-                    text: failureMessage,
-                });
-
-                console.log("⚠️ Failure email sent to:", customerEmail);
-            } catch (err) {
-                console.error("❌ Failure Email Error:", err);
+                console.error(`❌ Email Error for ${eventType}:`, err);
             }
         }
 
