@@ -1270,4 +1270,23 @@ router.post('/agency/subscription/cancel', async (req, res) => {
   }
 });
 
+
+router.get("/transactions", async (req, res) => {
+  try {
+    const [rows] = await db.execute("SELECT * FROM transactions ORDER BY id DESC");
+
+    res.json({
+      success: true,
+      count: rows.length,
+      data: rows
+    });
+  } catch (err) {
+    console.error("❌ Error fetching transactions:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch transactions"
+    });
+  }
+});
+
 module.exports = router;
