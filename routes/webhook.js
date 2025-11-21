@@ -7,9 +7,9 @@ const razorpay = require("./razorpay");
 
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
 
-// =========================
-//   RAZORPAY WEBHOOK
-// =========================
+// ============================================================
+//                  RAZORPAY WEBHOOK
+// ============================================================
 router.post("/webhook/razorpay", async (req, res) => {
     try {
         const signature = req.headers["x-razorpay-signature"];
@@ -19,9 +19,7 @@ router.post("/webhook/razorpay", async (req, res) => {
             return res.status(400).send("Bad Request");
         }
 
-        // -------------------------------------------
-        // Verify webhook signature
-        // -------------------------------------------
+        // Verify signature
         const expectedSignature = crypto
             .createHmac("sha256", RAZORPAY_WEBHOOK_SECRET)
             .update(rawBody)
@@ -36,7 +34,7 @@ router.post("/webhook/razorpay", async (req, res) => {
         const eventType = event?.event;
 
         console.log("\n===============================");
-        console.log("📩 Razorpay Webhook Received");
+        console.log("📩 Razorpay Webhook");
         console.log("Event:", eventType);
         console.log("===============================\n");
 
@@ -44,7 +42,7 @@ router.post("/webhook/razorpay", async (req, res) => {
         const paymentEntity = event.payload?.payment?.entity;
 
         // ======================================================
-        //            Helper: Insert Transaction Log
+        // Helper: Insert Transaction Log
         // ======================================================
         async function logTransaction({
             customer_id,
@@ -74,96 +72,107 @@ router.post("/webhook/razorpay", async (req, res) => {
                         invoice_id
                     ]
                 );
+
                 console.log(`💾 Stored Transaction: ${transaction_status}`);
+
             } catch (err) {
                 console.error("❌ Transaction Insert Error:", err);
             }
         }
 
         // ======================================================
-        // Fetch customer & plan details
+        // Fetch customer & plan info (used in emails)
         // ======================================================
         let customerEmail = null;
         let customerName = null;
-        let planName = "Plan";
-        let planAmount = "0.00";
-        let planCurrency = "INR";
 
-        const customer_id = subscriptionEntity?.customer_id;
-
-        if (customer_id) {
+        if (subscriptionEntity?.customer_id) {
             try {
-                const customer = await razorpay.customers.fetch(customer_id);
+                const customer = await razorpay.customers.fetch(subscriptionEntity.customer_id);
                 customerEmail = customer.email;
                 customerName = customer.name || "Customer";
             } catch (err) {
-                console.error("❌ Failed to fetch customer:", err);
+                console.log("❌ Customer fetch error:", err);
             }
         }
 
-        if (subscriptionEntity?.plan_id) {
-            try {
-                const plan = await razorpay.plans.fetch(subscriptionEntity.plan_id);
-                planName = plan?.item?.name || "Plan";
-                planAmount = (plan?.item?.amount / 100).toFixed(2);
-                planCurrency = plan?.item?.currency || "INR";
-            } catch (err) {
-                console.error("❌ Failed to fetch plan details:", err);
-            }
-        }
-
-        const getTodayDate = () => {
-            const today = new Date();
-            const dd = String(today.getDate()).padStart(2, "0");
-            const mm = String(today.getMonth() + 1).padStart(2, "0");
-            const yyyy = today.getFullYear();
-            return `${dd}-${mm}-${yyyy}`;
-        };
-
-        const todayDate = getTodayDate();
-
-        const successMessage = `Dear ${customerName}, your payment of ${planCurrency} ${planAmount} for the Gudnet ${planName} plan has been successfully debited on ${todayDate}. Thank you for staying connected with Gudnet.`;
-
-        const failureMessage = `Dear ${customerName}, your payment for the Gudnet ${planName} plan on ${todayDate} has failed. Please update your payment method to avoid service interruption.`;
-
-        // ======================================================
-        //           PAYMENT EVENTS → SAVE IN TRANSACTIONS
-        // ======================================================
         const paymentEvents = [
             "payment.authorized",
             "payment.failed",
-            "payment.captured",
-            "payment.dispute.created",
-            "payment.dispute.won",
-            "payment.dispute.lost",
-            "payment.dispute.closed",
-            "payment.dispute.under_review",
-            "payment.dispute.action_required",
-            "payment.downtime.started",
-            "payment.downtime.updated",
-            "payment.downtime.resolved",
+            "payment.captured"
         ];
 
+        // ======================================================
+        //                 PAYMENT EVENTS
+        // ======================================================
         if (paymentEvents.includes(eventType)) {
             const payment = paymentEntity;
 
+            let subscriptionId = null;
+            let planId = null;
+            let planNameFinal = null;
+
+            // 1️⃣ From payment notes
+            subscriptionId = payment?.notes?.subscription_id || null;
+
+            // 2️⃣ From order info
+            if (!subscriptionId && payment?.order_id) {
+                try {
+                    const orderInfo = await razorpay.orders.fetch(payment.order_id);
+                    subscriptionId = orderInfo.subscription_id || null;
+                } catch (err) {
+                    console.log("❌ Order fetch error:", err);
+                }
+            }
+
+            // 3️⃣ From invoice
+            if (!subscriptionId && payment?.invoice_id) {
+                try {
+                    const invoice = await razorpay.invoices.fetch(payment.invoice_id);
+                    subscriptionId = invoice.subscription_id || null;
+                } catch (err) {
+                    console.log("❌ Invoice fetch error:", err);
+                }
+            }
+
+            // 4️⃣ Fetch subscription → get plan_id
+            if (subscriptionId) {
+                try {
+                    const subscription = await razorpay.subscriptions.fetch(subscriptionId);
+                    planId = subscription.plan_id || null;
+                } catch (err) {
+                    console.log("❌ Subscription fetch error:", err);
+                }
+            }
+
+            // 5️⃣ Fetch plan → get plan name
+            if (planId) {
+                try {
+                    const plan = await razorpay.plans.fetch(planId);
+                    planNameFinal = plan?.item?.name || "Plan";
+                } catch (err) {
+                    console.log("❌ Plan fetch error:", err);
+                }
+            }
+
+            // 6️⃣ Save payment transaction
             await logTransaction({
                 customer_id: payment?.customer_id || subscriptionEntity?.customer_id || null,
-                plan_name: planName,
+                plan_name: planNameFinal,
                 order_id: payment?.order_id || null,
                 payment_id: payment?.id || null,
-                plan_id: subscriptionEntity?.plan_id || null,
-                subscription_id: subscriptionEntity?.id || null,
+                plan_id: planId,
+                subscription_id: subscriptionId,
                 amount: payment?.amount ? (payment.amount / 100).toFixed(2) : null,
                 transaction_status: eventType,
                 invoice_id: payment?.invoice_id || null
             });
 
-            console.log("📦 Transaction saved for:", eventType);
+            console.log("💾 Transaction saved for:", eventType);
         }
 
         // ======================================================
-        //     EVENT: subscription.charged → Update Due Date
+        //     subscription.charged → Update Due Date
         // ======================================================
         if (eventType === "subscription.charged") {
             const sub = subscriptionEntity;
@@ -193,53 +202,36 @@ router.post("/webhook/razorpay", async (req, res) => {
                          WHERE razorpay_subscription_id = ? AND customer_id = ?`,
                         [formatted, razorpaySubscriptionId, razorpayCustomerId]
                     );
+
                     console.log("✅ next_duedate updated:", formatted);
                 } catch (err) {
                     console.error("❌ DB Update Error:", err);
                 }
-
-                if (customerEmail) {
-                    try {
-                        await transporter.sendMail({
-                            from: ADMIN_EMAIL,
-                            to: customerEmail,
-                            subject: "Gudnet Payment Confirmation",
-                            text: successMessage,
-                        });
-                        console.log("📧 Success Email Sent to:", customerEmail);
-                    } catch (err) {
-                        console.error("❌ Email Error:", err);
-                    }
-                }
             }
         }
 
         // ======================================================
-        //        PAYMENT FAILED EMAIL
+        //          PAYMENT FAILED EMAIL
         // ======================================================
-        if (eventType === "payment.failed") {
-            if (customerEmail) {
-                try {
-                    await transporter.sendMail({
-                        from: ADMIN_EMAIL,
-                        to: customerEmail,
-                        subject: "Gudnet Payment Failed",
-                        text: failureMessage,
-                    });
-
-                    console.log("📧 Failure Email Sent:", customerEmail);
-                } catch (err) {
-                    console.error("❌ Email Error:", err);
-                }
+        if (eventType === "payment.failed" && customerEmail) {
+            try {
+                await transporter.sendMail({
+                    from: ADMIN_EMAIL,
+                    to: customerEmail,
+                    subject: "Gudnet Payment Failed",
+                    text: `Your payment has failed. Please update your payment method.`,
+                });
+            } catch (err) {
+                console.error("❌ Email Error:", err);
             }
         }
 
         res.status(200).send("OK");
+
     } catch (err) {
         console.error("❌ Webhook Exception:", err);
         res.status(500).send("Server error");
     }
 });
-
 
 module.exports = router;
