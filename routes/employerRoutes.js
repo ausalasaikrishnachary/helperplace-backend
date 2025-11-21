@@ -1117,12 +1117,16 @@ router.put('/subscription/agency_user/:id', async (req, res) => {
     const {
       subscription_plan_id,
       subscription,
+      plan_id,
       plan_name,
       plan_days,
       plan_startdate,
       plan_enddate,
       payment_status,
-      payment_amount
+      payment_amount,
+      razorpay_subscription_id,
+      customer_id,
+      subscription_status
     } = req.body;
 
     // Prepare dates for MySQL
@@ -1132,14 +1136,18 @@ router.put('/subscription/agency_user/:id', async (req, res) => {
     // ✅ Update query
     const [result] = await db.query(
       `UPDATE agency_user 
-       SET subscription_plan_id = ?, 
-       subscription = ?,
+        SET subscription_plan_id = ?, 
+           subscription = ?, 
            plan_name = ?, 
            plan_days = ?, 
            plan_startdate = ?, 
            plan_enddate = ?, 
+           next_duedate = ?,
            payment_status = ?, 
-           payment_amount = ? 
+           payment_amount = ?, 
+           razorpay_subscription_id = ?, 
+           razorpay_plan_id = ? ,
+           subscription_status = ?
        WHERE id = ?`,
       [
         subscription_plan_id,
@@ -1148,9 +1156,13 @@ router.put('/subscription/agency_user/:id', async (req, res) => {
         plan_days,
         mysqlPlanStartDate,
         mysqlPlanEndDate,
+        mysqlPlanEndDate,
         payment_status,
         payment_amount,
-        userId
+        razorpay_subscription_id,
+        plan_id,
+        subscription_status,
+        userId,
       ]
     );
 
@@ -1162,6 +1174,99 @@ router.put('/subscription/agency_user/:id', async (req, res) => {
   } catch (error) {
     console.error("Error updating subscription:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+router.post('/agency/subscription/cancel', async (req, res) => {
+  try {
+    const { subscription_id, user_id, customer_id, plan_name } = req.body;
+
+    if (!subscription_id || !user_id || !customer_id) {
+      console.log("Missing required fields");
+      return res.status(400).json({
+        success: false,
+        message: 'Subscription ID, User ID and Customer ID are required'
+      });
+    }
+
+    // 1. Fetch customer details to get email
+    console.log("Fetching Razorpay customer:", customer_id);
+    const customer = await razorpay.customers.fetch(customer_id);
+    // console.log("Customer Details:", customer);
+
+    const customerEmail = customer.email;
+    const customerName = customer.name || "Customer";
+
+    // 2. Cancel subscription on Razorpay
+    const subscription = await razorpay.subscriptions.cancel(subscription_id);
+    // console.log("Razorpay Cancel Response:", subscription);
+
+    // 3. Update DB
+    const updateUserQuery = `
+      UPDATE agency_user 
+      SET 
+        subscription_plan_id = NULL,
+        subscription = NULL,
+        razorpay_plan_id = NULL,
+        plan_name = NULL,
+        plan_days = NULL,
+        plan_startdate = NULL,
+        plan_enddate = NULL,
+        next_duedate = NULL,
+        payment_status = NULL,
+        payment_amount = NULL,
+        razorpay_subscription_id = NULL,
+        subscription_status = NULL
+      WHERE razorpay_subscription_id = ? AND id = ?
+    `;
+
+    const [userResult] = await db.execute(updateUserQuery, [subscription_id, user_id]);
+
+    if (userResult.affectedRows === 0) {
+      console.log("No matching user found for subscription cancel");
+      return res.status(404).json({
+        success: false,
+        message: 'User subscription not found'
+      });
+    }
+
+    // 4. Send Email Notification
+    if (customerEmail) {
+      const mailOptions = {
+        from: ADMIN_EMAIL,
+        to: customerEmail,
+        subject: `Your ${plan_name} Subscription Has Been Cancelled`,
+        html: `
+          <p>Hello ${customerName},</p>
+           <p>Your <strong>${plan_name}</strong> subscription has been cancelled successfully.</p>
+          <p>If this wasn't you or you want to resume again, feel free to contact support.</p>
+          <p>Thank you.</p>
+        `
+      };
+
+      try {
+        await transporter.sendMail(mailOptions);
+        // console.log("Cancellation email sent to:", customerEmail);
+      } catch (emailError) {
+        console.error("Failed to send cancellation email:", emailError);
+      }
+    } else {
+      console.log("Customer does not have an email in Razorpay.");
+    }
+
+    // 5. Final API Response
+    res.json({
+      success: true,
+      message: 'Subscription cancelled successfully and email sent',
+      subscription
+    });
+
+  } catch (error) {
+    console.error('Error cancelling subscription:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cancel subscription'
+    });
   }
 });
 

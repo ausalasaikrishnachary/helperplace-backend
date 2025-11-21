@@ -303,6 +303,7 @@ router.post('/login', async (req, res) => {
         message: 'Login successful',
         user: {
           id: agencyUser.id,
+          customer_id: agencyUser.razorpay_customer_id,
           email: agencyUser.email,
           mobile_number: agencyUser.mobile_number,
           first_name: agencyUser.first_name,

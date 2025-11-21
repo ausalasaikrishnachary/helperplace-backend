@@ -4,7 +4,7 @@ const db = require('../db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-
+const razorpay = require("./razorpay");
 const otpStore = new Map();
 
 // Ensure uploads directory exists
@@ -192,6 +192,7 @@ router.post('/check-otp-status', (req, res) => {
 // Agency registration endpoint with file uploads
 router.post('/agency', (req, res) => {
   upload(req, res, async function (err) {
+
     if (err) {
       console.error('Upload error:', err);
       return res.status(400).json({
@@ -202,7 +203,7 @@ router.post('/agency', (req, res) => {
     }
 
     try {
-      // Now req.body should contain all the form fields
+
       const {
         agency_name, city, province, country, full_address,
         whatsapp_number_1, whatsapp_number_2, whatsapp_number_3, whatsapp_number_4,
@@ -211,24 +212,38 @@ router.post('/agency', (req, res) => {
         manager_mobile, manager_email, password, role
       } = req.body;
 
-      // Validate required fields
       if (!agency_name || !email || !password) {
         return res.status(400).json({ error: 'Required fields are missing' });
       }
 
-      // Check if email already exists in agency_user table
-      const [existingAgency] = await db.query('SELECT id FROM agency_user WHERE email = ?', [email]);
+      // Check if email exists
+      const [existingAgency] = await db.query(
+        'SELECT id FROM agency_user WHERE email = ?',
+        [email]
+      );
+
       if (existingAgency.length > 0) {
         return res.status(400).json({ error: 'Email already registered' });
       }
 
-      // Check if OTP was verified for this email
-      // const storedOtpData = otpStore.get(email);
-      // if (!storedOtpData || !storedOtpData.verified) {
-      //   return res.status(400).json({ error: 'Email not verified with OTP. Please complete OTP verification first.' });
-      // }
+      // ---------- STEP 1: CREATE RAZORPAY CUSTOMER ----------
+      let razorpayCustomer;
 
-      // Get file paths
+      try {
+        razorpayCustomer = await razorpay.customers.create({
+          name: agency_name,
+          email: email,
+          contact: official_phone || owner_mobile || "",
+          fail_existing: false
+        });
+      } catch (err) {
+        console.error("Razorpay Customer Error:", err);
+        return res.status(400).json({ error: "Failed to create Razorpay customer" });
+      }
+
+      const razorpay_customer_id = razorpayCustomer.id; // Eg: cust_ABC123
+
+      // ---------- FILE PATHS ----------
       const files = req.files || {};
       const filePaths = {
         company_logo: files.company_logo?.[0] ? path.join('uploads', path.basename(files.company_logo[0].path)) : null,
@@ -238,7 +253,7 @@ router.post('/agency', (req, res) => {
         manager_photo: files.manager_photo?.[0] ? path.join('uploads', path.basename(files.manager_photo[0].path)) : null
       };
 
-      // Insert into agency_user table with file paths
+      // ---------- STEP 2: INSERT IN DB WITH customer_id ----------
       const query = `
         INSERT INTO agency_user (
           agency_name, city, province, country, full_address,
@@ -247,8 +262,8 @@ router.post('/agency', (req, res) => {
           owner_mobile, owner_email, manager_name, manager_nationality,
           manager_mobile, manager_email, password, role, is_verified,
           company_logo, business_card, license_copy, owner_photo, manager_photo,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+          razorpay_customer_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `;
 
       const [result] = await db.query(query, [
@@ -258,18 +273,16 @@ router.post('/agency', (req, res) => {
         owner_mobile, owner_email, manager_name, manager_nationality,
         manager_mobile, manager_email, password, role || 'agency_admin', 1,
         filePaths.company_logo, filePaths.business_card, filePaths.license_copy,
-        filePaths.owner_photo, filePaths.manager_photo
+        filePaths.owner_photo, filePaths.manager_photo,
+        razorpay_customer_id // ⭐ STORE RAZORPAY CUSTOMER ID
       ]);
 
-      // Send welcome email (make sure sendOnboardingEmails function exists)
-      // await sendOnboardingEmails(email, owner_name, '', 'agency_admin');
-
-      // Clear OTP data after successful registration
-      otpStore.delete(email);
+      // otpStore.delete(email);
 
       res.status(201).json({
         id: result.insertId,
         message: 'Agency registered successfully',
+        razorpay_customer_id,
         agency: {
           id: result.insertId,
           agency_name,
@@ -282,7 +295,6 @@ router.post('/agency', (req, res) => {
     } catch (err) {
       console.error('Error registering agency:', err);
 
-      // Clean up uploaded files if there was an error
       if (req.files) {
         Object.values(req.files).forEach(fileArray => {
           if (fileArray && fileArray[0] && fs.existsSync(fileArray[0].path)) {
@@ -295,6 +307,7 @@ router.post('/agency', (req, res) => {
     }
   });
 });
+
 
 
 // GET - All agencies
