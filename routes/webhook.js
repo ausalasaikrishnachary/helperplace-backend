@@ -85,6 +85,9 @@ router.post("/webhook/razorpay", async (req, res) => {
         // ======================================================
         let customerEmail = null;
         let customerName = null;
+        let planNameFinal = null;
+        let planAmount = null;
+        let planCurrency = null;
 
         if (subscriptionEntity?.customer_id) {
             try {
@@ -99,7 +102,16 @@ router.post("/webhook/razorpay", async (req, res) => {
         const paymentEvents = [
             "payment.authorized",
             "payment.failed",
-            "payment.captured"
+            "payment.captured",
+            "payment.dispute.created",
+            "payment.dispute.won",
+            "payment.dispute.lost",
+            "payment.dispute.closed",
+            "payment.dispute.under_review",
+            "payment.dispute.action_required",
+            "payment.downtime.started",
+            "payment.downtime.updated",
+            "payment.downtime.resolved",
         ];
 
         // ======================================================
@@ -110,7 +122,6 @@ router.post("/webhook/razorpay", async (req, res) => {
 
             let subscriptionId = null;
             let planId = null;
-            let planNameFinal = null;
 
             // 1️⃣ From payment notes
             subscriptionId = payment?.notes?.subscription_id || null;
@@ -145,11 +156,13 @@ router.post("/webhook/razorpay", async (req, res) => {
                 }
             }
 
-            // 5️⃣ Fetch plan → get plan name
+            // 5️⃣ Fetch plan → get plan name, amount, currency
             if (planId) {
                 try {
                     const plan = await razorpay.plans.fetch(planId);
                     planNameFinal = plan?.item?.name || "Plan";
+                    planAmount = plan.amount ? (plan.amount / 100).toFixed(2) : null;
+                    planCurrency = plan.currency?.toUpperCase() || "INR";
                 } catch (err) {
                     console.log("❌ Plan fetch error:", err);
                 }
@@ -211,18 +224,54 @@ router.post("/webhook/razorpay", async (req, res) => {
         }
 
         // ======================================================
+        //          PAYMENT SUCCESS EMAIL
+        // ======================================================
+        if (eventType === "payment.captured" && customerEmail && customerName) {
+            try {
+                const todayDate = new Date().toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+
+                const successMessage = `Dear ${customerName}, your payment of ${planCurrency} ${planAmount} for the Gudnet ${planNameFinal} plan has been successfully debited on ${todayDate}. Thank you for staying connected with Gudnet.`;
+
+                await transporter.sendMail({
+                    from: ADMIN_EMAIL,
+                    to: customerEmail,
+                    subject: "Gudnet Payment Successful",
+                    text: successMessage,
+                });
+
+                console.log("✅ Success email sent to:", customerEmail);
+            } catch (err) {
+                console.error("❌ Success Email Error:", err);
+            }
+        }
+
+        // ======================================================
         //          PAYMENT FAILED EMAIL
         // ======================================================
-        if (eventType === "payment.failed" && customerEmail) {
+        if (eventType === "payment.failed" && customerEmail && customerName) {
             try {
+                const todayDate = new Date().toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+
+                const failureMessage = `Dear ${customerName}, your payment for the Gudnet ${planNameFinal} plan on ${todayDate} has failed. Please update your payment method to avoid service interruption.`;
+
                 await transporter.sendMail({
                     from: ADMIN_EMAIL,
                     to: customerEmail,
                     subject: "Gudnet Payment Failed",
-                    text: `Your payment has failed. Please update your payment method.`,
+                    text: failureMessage,
                 });
+
+                console.log("⚠️ Failure email sent to:", customerEmail);
             } catch (err) {
-                console.error("❌ Email Error:", err);
+                console.error("❌ Failure Email Error:", err);
             }
         }
 
