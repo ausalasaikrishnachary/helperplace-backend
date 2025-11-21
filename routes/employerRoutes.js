@@ -1006,7 +1006,7 @@ router.post('/subscription/cancel', async (req, res) => {
     }
 
     // 1. Fetch customer details to get email
-    console.log("Fetching Razorpay customer:", customer_id);
+    // console.log("Fetching Razorpay customer:", customer_id);
     const customer = await razorpay.customers.fetch(customer_id);
     // console.log("Customer Details:", customer);
 
@@ -1090,7 +1090,7 @@ router.get("/customer/:customer_id", async (req, res) => {
   try {
     const { customer_id } = req.params;
 
-    console.log("Fetching Razorpay customer:", customer_id);
+    // console.log("Fetching Razorpay customer:", customer_id);
 
     const customer = await razorpay.customers.fetch(customer_id);
 
@@ -1190,7 +1190,7 @@ router.post('/agency/subscription/cancel', async (req, res) => {
     }
 
     // 1. Fetch customer details to get email
-    console.log("Fetching Razorpay customer:", customer_id);
+    // console.log("Fetching Razorpay customer:", customer_id);
     const customer = await razorpay.customers.fetch(customer_id);
     // console.log("Customer Details:", customer);
 
