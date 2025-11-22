@@ -168,7 +168,7 @@ async function sendApplicationEmails(job, jobSeeker, hasGoldSubscription) {
           <li>Priority listing in search results</li>
           <li>Enhanced visibility for your job posts</li>
         </ul>
-        <p>Upgrade now for a better hiring experience!</p>
+        <p>Upgrade now for a better hiring experience. To do so, please visit our website at https://gulfworker.net/login</p>
       `;
     }
 
