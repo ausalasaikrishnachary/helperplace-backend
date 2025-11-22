@@ -74,9 +74,10 @@ router.post("/webhook/razorpay", async (req, res) => {
                 );
 
                 console.log(`💾 Stored Transaction: ${transaction_status}`);
-
+                return true;
             } catch (err) {
                 console.error("❌ Transaction Insert Error:", err);
+                return false;
             }
         }
 
@@ -88,16 +89,16 @@ router.post("/webhook/razorpay", async (req, res) => {
         let planNameFinal = null;
         let planAmount = null;
         let planCurrency = null;
-
-        if (subscriptionEntity?.customer_id) {
-            try {
-                const customer = await razorpay.customers.fetch(subscriptionEntity.customer_id);
-                customerEmail = customer.email;
-                customerName = customer.name || "Customer";
-            } catch (err) {
-                console.log("❌ Customer fetch error:", err);
-            }
-        }
+        let paymentId = null;
+        let orderId = null;
+        let invoiceId = null;
+        let paymentAmount = null;
+        let paymentMethod = null;
+        let paymentBank = null;
+        let paymentCard = null;
+        let paymentWallet = null;
+        let subscriptionId = null;
+        let planId = null;
 
         const paymentEvents = [
             "payment.authorized",
@@ -120,8 +121,15 @@ router.post("/webhook/razorpay", async (req, res) => {
         if (paymentEvents.includes(eventType)) {
             const payment = paymentEntity;
 
-            let subscriptionId = null;
-            let planId = null;
+            // Extract payment details
+            paymentId = payment?.id || null;
+            orderId = payment?.order_id || null;
+            invoiceId = payment?.invoice_id || null;
+            paymentAmount = payment?.amount ? (payment.amount / 100).toFixed(2) : null;
+            paymentMethod = payment?.method || null;
+            paymentBank = payment?.bank || null;
+            paymentCard = payment?.card?.network || null;
+            paymentWallet = payment?.wallet || null;
 
             // 1️⃣ From payment notes
             subscriptionId = payment?.notes?.subscription_id || null;
@@ -168,20 +176,240 @@ router.post("/webhook/razorpay", async (req, res) => {
                 }
             }
 
-            // 6️⃣ Save payment transaction
-            await logTransaction({
+            // 6️⃣ Try to get customer info from subscription if not available
+            if (!customerEmail && subscriptionEntity?.customer_id) {
+                try {
+                    const customer = await razorpay.customers.fetch(subscriptionEntity.customer_id);
+                    customerEmail = customer.email;
+                    customerName = customer.name || "Customer";
+                } catch (err) {
+                    console.log("❌ Customer fetch error:", err);
+                }
+            }
+
+            // 7️⃣ Try to get customer info from payment if still not available
+            if (!customerEmail && payment?.customer_id) {
+                try {
+                    const customer = await razorpay.customers.fetch(payment.customer_id);
+                    customerEmail = customer.email;
+                    customerName = customer.name || "Customer";
+                } catch (err) {
+                    console.log("❌ Customer fetch error from payment:", err);
+                }
+            }
+
+            // 8️⃣ Save payment transaction FIRST
+            const transactionSaved = await logTransaction({
                 customer_id: payment?.customer_id || subscriptionEntity?.customer_id || null,
                 plan_name: planNameFinal,
-                order_id: payment?.order_id || null,
-                payment_id: payment?.id || null,
+                order_id: orderId,
+                payment_id: paymentId,
                 plan_id: planId,
                 subscription_id: subscriptionId,
-                amount: payment?.amount ? (payment.amount / 100).toFixed(2) : null,
+                amount: paymentAmount,
                 transaction_status: eventType,
-                invoice_id: payment?.invoice_id || null
+                invoice_id: invoiceId
             });
 
-            console.log("💾 Transaction saved for:", eventType);
+            console.log("💾 Transaction saved for:", eventType, "Status:", transactionSaved);
+
+            // ======================================================
+            //          SEND EMAIL AFTER DB STORAGE
+            // ======================================================
+            if (transactionSaved && customerEmail && customerName) {
+                try {
+                    const todayDate = new Date().toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                    });
+
+                    const todayTime = new Date().toLocaleTimeString('en-IN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    });
+
+                    // Format payment method for display
+                    const formatPaymentMethod = (method) => {
+                        if (!method) return "Not specified";
+                        return method.charAt(0).toUpperCase() + method.slice(1).replace('_', ' ');
+                    };
+
+                    // Format payment details string
+                    const paymentDetails = `
+Payment ID: ${paymentId || "N/A"}
+Order ID: ${orderId || "N/A"}
+Amount: ${planCurrency} ${paymentAmount || planAmount || "N/A"}
+Payment Method: ${formatPaymentMethod(paymentMethod)}
+${paymentBank ? `Bank: ${paymentBank}` : ''}
+${paymentCard ? `Card: ${paymentCard}` : ''}
+${paymentWallet ? `Wallet: ${paymentWallet}` : ''}
+Date: ${todayDate}
+Time: ${todayTime}
+                    `.trim();
+
+                    // Email templates for different payment events
+                    const emailTemplates = {
+                        "payment.authorized": {
+                            subject: "Gudnet Payment Authorized",
+                            message: `Dear ${customerName},
+
+Your payment for the Gudnet ${planNameFinal} plan has been authorized.
+
+${paymentDetails}
+
+The amount will be captured shortly. You will receive another confirmation once the payment is successfully processed.
+
+Thank you for choosing Gudnet!`
+                        },
+                        "payment.captured": {
+                            subject: "Gudnet Payment Successful",
+                            message: `Dear ${customerName},
+
+Your payment for the Gudnet ${planNameFinal} plan has been successfully processed.
+
+${paymentDetails}
+
+Thank you for staying connected with Gudnet. Your subscription is now active and you can continue to enjoy our services.
+
+If you have any questions, please contact our support team.`
+                        },
+                        "payment.failed": {
+                            subject: "Gudnet Payment Failed",
+                            message: `Dear ${customerName},
+
+We were unable to process your payment for the Gudnet ${planNameFinal} plan.
+
+${paymentDetails}
+
+Please update your payment method to avoid service interruption. You can update your payment details in your account settings.
+
+If this issue persists, please contact our support team for assistance.`
+                        },
+                        "payment.dispute.created": {
+                            subject: "Payment Dispute Created",
+                            message: `Dear ${customerName},
+
+A dispute has been created for your recent payment.
+
+${paymentDetails}
+
+We are reviewing this matter and will keep you updated on the resolution. Please ensure you have all relevant transaction details available.
+
+For any questions regarding this dispute, please contact our support team.`
+                        },
+                        "payment.dispute.won": {
+                            subject: "Payment Dispute Resolved in Your Favor",
+                            message: `Dear ${customerName},
+
+We're happy to inform you that the dispute for your payment has been resolved in your favor.
+
+${paymentDetails}
+
+The disputed amount has been credited back to your account. Thank you for your patience and cooperation throughout this process.`
+                        },
+                        "payment.dispute.lost": {
+                            subject: "Payment Dispute Update",
+                            message: `Dear ${customerName},
+
+The dispute for your payment has been resolved.
+
+${paymentDetails}
+
+Please contact our support team for more details about this resolution and any further steps that may be required.`
+                        },
+                        "payment.dispute.closed": {
+                            subject: "Payment Dispute Closed",
+                            message: `Dear ${customerName},
+
+The dispute for your payment has been closed.
+
+${paymentDetails}
+
+If you have any questions about this closure, please don't hesitate to contact our support team.`
+                        },
+                        "payment.dispute.under_review": {
+                            subject: "Payment Dispute Under Review",
+                            message: `Dear ${customerName},
+
+Your payment dispute is currently under review.
+
+${paymentDetails}
+
+We are working to resolve this matter and will notify you once we have an update. Thank you for your patience.`
+                        },
+                        "payment.dispute.action_required": {
+                            subject: "Action Required - Payment Dispute",
+                            message: `Dear ${customerName},
+
+Your attention is required regarding a payment dispute.
+
+${paymentDetails}
+
+Please check your email for further instructions or contact our support team immediately to resolve this matter.`
+                        },
+                        "payment.downtime.started": {
+                            subject: "Payment System Notice",
+                            message: `Dear ${customerName},
+
+We've detected a temporary issue with our payment system.
+
+${paymentDetails}
+
+Your payment may be affected by this issue. Our team is working to resolve this as quickly as possible. We apologize for any inconvenience.`
+                        },
+                        "payment.downtime.updated": {
+                            subject: "Payment System Update",
+                            message: `Dear ${customerName},
+
+We have an update regarding the payment system issue.
+
+${paymentDetails}
+
+We're continuing to work on the resolution and will keep you informed of our progress. Thank you for your patience.`
+                        },
+                        "payment.downtime.resolved": {
+                            subject: "Payment System Restored",
+                            message: `Dear ${customerName},
+
+The payment system issue has been resolved.
+
+${paymentDetails}
+
+Your payments should now process normally. We apologize for any inconvenience caused and thank you for your patience.`
+                        }
+                    };
+
+                    const template = emailTemplates[eventType] || {
+                        subject: `Gudnet Payment Update - ${eventType}`,
+                        message: `Dear ${customerName},
+
+There's an update regarding your payment for the Gudnet ${planNameFinal} plan.
+
+${paymentDetails}
+
+Event Type: ${eventType}
+
+If you have any questions, please contact our support team.`
+                    };
+
+                    await transporter.sendMail({
+                        from: ADMIN_EMAIL,
+                        to: customerEmail,
+                        subject: template.subject,
+                        text: template.message,
+                    });
+
+                    console.log(`📧 ${eventType} email sent to:`, customerEmail);
+
+                } catch (err) {
+                    console.error(`❌ Email Error for ${eventType}:`, err);
+                }
+            } else {
+                console.log(`❌ Cannot send email: transactionSaved=${transactionSaved}, customerEmail=${!!customerEmail}, customerName=${!!customerName}`);
+            }
         }
 
         // ======================================================
@@ -220,88 +448,6 @@ router.post("/webhook/razorpay", async (req, res) => {
                 } catch (err) {
                     console.error("❌ DB Update Error:", err);
                 }
-            }
-        }
-
-        // ======================================================
-        //          PAYMENT EVENT EMAILS
-        // ======================================================
-        if (paymentEvents.includes(eventType) && customerEmail && customerName) {
-            try {
-                const todayDate = new Date().toLocaleDateString('en-IN', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                });
-
-                // Email templates for different payment events
-                const emailTemplates = {
-                    "payment.authorized": {
-                        subject: "Gudnet Payment Authorized",
-                        message: `Dear ${customerName}, your payment of ${planCurrency} ${planAmount} for the Gudnet ${planNameFinal} plan has been authorized on ${todayDate}. The amount will be captured shortly.`
-                    },
-                    "payment.captured": {
-                        subject: "Gudnet Payment Successful",
-                        message: `Dear ${customerName}, your payment of ${planCurrency} ${planAmount} for the Gudnet ${planNameFinal} plan has been successfully debited on ${todayDate}. Thank you for staying connected with Gudnet.`
-                    },
-                    "payment.failed": {
-                        subject: "Gudnet Payment Failed",
-                        message: `Dear ${customerName}, your payment for the Gudnet ${planNameFinal} plan on ${todayDate} has failed. Please update your payment method to avoid service interruption.`
-                    },
-                    "payment.dispute.created": {
-                        subject: "Payment Dispute Created",
-                        message: `Dear ${customerName}, a dispute has been created for your payment of ${planCurrency} ${planAmount} for the Gudnet ${planNameFinal} plan. We will keep you updated on the resolution.`
-                    },
-                    "payment.dispute.won": {
-                        subject: "Payment Dispute Resolved in Your Favor",
-                        message: `Dear ${customerName}, we're happy to inform you that the dispute for your payment of ${planCurrency} ${planAmount} has been resolved in your favor. Thank you for your patience.`
-                    },
-                    "payment.dispute.lost": {
-                        subject: "Payment Dispute Update",
-                        message: `Dear ${customerName}, the dispute for your payment of ${planCurrency} ${planAmount} has been resolved. Please contact our support team for more details.`
-                    },
-                    "payment.dispute.closed": {
-                        subject: "Payment Dispute Closed",
-                        message: `Dear ${customerName}, the dispute for your payment of ${planCurrency} ${planAmount} has been closed.`
-                    },
-                    "payment.dispute.under_review": {
-                        subject: "Payment Dispute Under Review",
-                        message: `Dear ${customerName}, your payment dispute for ${planCurrency} ${planAmount} is currently under review. We'll notify you once we have an update.`
-                    },
-                    "payment.dispute.action_required": {
-                        subject: "Action Required - Payment Dispute",
-                        message: `Dear ${customerName}, your attention is required for the payment dispute regarding ${planCurrency} ${planAmount}. Please check your email for further instructions.`
-                    },
-                    "payment.downtime.started": {
-                        subject: "Payment System Notice",
-                        message: `Dear ${customerName}, we've detected a temporary issue with our payment system. Your payment of ${planCurrency} ${planAmount} may be affected. We're working to resolve this.`
-                    },
-                    "payment.downtime.updated": {
-                        subject: "Payment System Update",
-                        message: `Dear ${customerName}, we have an update regarding the payment system issue. We're continuing to work on the resolution.`
-                    },
-                    "payment.downtime.resolved": {
-                        subject: "Payment System Restored",
-                        message: `Dear ${customerName}, the payment system issue has been resolved. Your payments should now process normally.`
-                    }
-                };
-
-                const template = emailTemplates[eventType] || {
-                    subject: `Gudnet Payment Update - ${eventType}`,
-                    message: `Dear ${customerName}, there's an update regarding your payment for the Gudnet ${planNameFinal} plan. Event: ${eventType}`
-                };
-
-                await transporter.sendMail({
-                    from: ADMIN_EMAIL,
-                    to: customerEmail,
-                    subject: template.subject,
-                    text: template.message,
-                });
-
-                console.log(`📧 ${eventType} email sent to:`, customerEmail);
-
-            } catch (err) {
-                console.error(`❌ Email Error for ${eventType}:`, err);
             }
         }
 
