@@ -919,7 +919,7 @@ const sendJobApprovedEmail = async (to, firstName, jobTitle) => {
         <li>Enhanced visibility for your job posts</li>
       </ul>
       
-      <p>Upgrade now for a better hiring experience. To view and manage applications, please <a href="https://localhost:3002/subscriptionplans?email=${encodeURIComponent()}">login to your account</a>.</p>
+      <p>Upgrade now for a better hiring experience. To view and manage applications, please <a href="https://gulfworker.net/subscriptionplans?email=${encodeURIComponent(to)}">login to your account</a>.</p>
       <p>Best regards,<br/>Gulf Helper Team</p>
     `
     };
@@ -945,7 +945,7 @@ const sendJobRejectedEmail = async (to, firstName, jobTitle) => {
         <li>Enhanced visibility for your job posts</li>
       </ul>
       
-      <p>Upgrade now for a better hiring experience. To view and manage applications, please <a href="https://localhost:3002/subscriptionplans?email=${encodeURIComponent()}">login to your account</a>.</p>
+      <p>Upgrade now for a better hiring experience. To view and manage applications, please <a href="https://gulfworker.net/subscriptionplans?email=${encodeURIComponent(to)}">login to your account</a>.</p>
       <p>If you believe this was a mistake or would like more information, please reply to this email.</p>
       <p>Best regards,<br/>Gulf Helper Team</p>
     `
