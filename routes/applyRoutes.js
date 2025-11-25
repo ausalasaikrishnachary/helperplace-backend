@@ -196,6 +196,52 @@ async function sendApplicationEmails(job, jobSeeker, hasGoldSubscription) {
   }
 }
 
+
+// Add this route to your backend (in your routes file)
+
+// Send job status email
+// Add this route to your backend routes
+router.post('/api/send-job-status-email', async (req, res) => {
+    try {
+        const { to, firstName, jobTitle, jobId, status } = req.body;
+        
+        console.log('📧 Sending job status email:', { to, firstName, jobTitle, status });
+
+        if (!to || !firstName || !jobTitle || !status) {
+            return res.status(400).json({ 
+                error: 'Missing required fields: to, firstName, jobTitle, status' 
+            });
+        }
+
+        const { sendJobApprovedEmail, sendJobRejectedEmail} = require('./emailService');
+
+        let emailResult;
+        
+        if (status === 'Approved') {
+            emailResult = await sendJobApprovedEmail(to, firstName, jobTitle, jobId);
+        } else if (status === 'Rejected') {
+            emailResult = await sendJobRejectedEmail(to, firstName, jobTitle, jobId);
+        } else {
+            return res.status(400).json({ error: 'Invalid status provided' });
+        }
+
+        console.log('✅ Job status email sent successfully');
+        res.status(200).json({ 
+            success: true, 
+            message: `Job ${status.toLowerCase()} email sent successfully`,
+            emailResult 
+        });
+
+    } catch (error) {
+        console.error('❌ Error sending job status email:', error);
+        res.status(500).json({ 
+            error: 'Failed to send job status email',
+            details: error.message 
+        });
+    }
+});
+
+
 // Get all applications (with optional filters)
 router.get('/api/applications', async (req, res) => {
   try {
