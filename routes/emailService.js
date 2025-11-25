@@ -903,15 +903,24 @@ const sendCustomEmail = async (to_email, subject, message) => {
 // Send job approval email to employer
 const sendJobApprovedEmail = async (to, firstName, jobTitle) => {
     const mailOptions = {
-        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Helper Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Your Job Post Has Been Approved!',
         html: `
       <p>Hi ${firstName},</p>
       <p>We're pleased to inform you that your job posting <strong>"${jobTitle}"</strong> has been approved by our team!</p>
       <p>Your job is now live and visible to potential candidates on Gulf Worker.</p>
-      <p>Candidates can now view and apply to your job posting. You'll start receiving applications soon.</p>
-      <p>Best regards,<br/>Gulf Hepler Team</p>
+      
+      <p><strong>Upgrade to Gold Subscription to get:</strong></p>
+      <ul>
+        <li>Direct access to candidate contact details</li>
+        <li>Faster communication with applicants</li>
+        <li>Priority listing in search results</li>
+        <li>Enhanced visibility for your job posts</li>
+      </ul>
+      
+      <p>Upgrade now for a better hiring experience. To view and manage applications, please <a href="https://localhost:3002/subscriptionplans?email=${encodeURIComponent()}">login to your account</a>.</p>
+      <p>Best regards,<br/>Gulf Helper Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
@@ -920,20 +929,29 @@ const sendJobApprovedEmail = async (to, firstName, jobTitle) => {
 // Send job rejection email to employer
 const sendJobRejectedEmail = async (to, firstName, jobTitle) => {
     const mailOptions = {
-        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Helper Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Your Job Post Has Been Rejected',
         html: `
       <p>Hi ${firstName},</p>
       <p>We regret to inform you that your job posting <strong>"${jobTitle}"</strong> has been rejected by our team.</p>
       <p>This decision was made after careful review. Your job post does not meet our platform guidelines.</p>
+      
+      <p><strong>Upgrade to Gold Subscription to get:</strong></p>
+      <ul>
+        <li>Direct access to candidate contact details</li>
+        <li>Faster communication with applicants</li>
+        <li>Priority listing in search results</li>
+        <li>Enhanced visibility for your job posts</li>
+      </ul>
+      
+      <p>Upgrade now for a better hiring experience. To view and manage applications, please <a href="https://localhost:3002/subscriptionplans?email=${encodeURIComponent()}">login to your account</a>.</p>
       <p>If you believe this was a mistake or would like more information, please reply to this email.</p>
-      <p>Best regards,<br/>Gulf Hepler Team</p>
+      <p>Best regards,<br/>Gulf Helper Team</p>
     `
     };
     return transporter.sendMail(mailOptions);
 };
-
 
 
 module.exports = {
