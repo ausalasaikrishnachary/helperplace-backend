@@ -10,7 +10,7 @@ const db = require('../db');
 router.post('/api/applications', async (req, res) => {
   try {
     const { userid, empuserid, jobid } = req.body;
-    
+
     console.log('📋 Application received:', { userid, empuserid, jobid });
 
     if (!userid || !empuserid || !jobid) {
@@ -23,7 +23,7 @@ router.post('/api/applications', async (req, res) => {
       'SELECT id FROM job_applications WHERE userid = ? AND jobid = ?',
       [userid, jobid]
     );
-    
+
     if (existing.length > 0) {
       console.log('❌ Duplicate application found');
       return res.status(409).json({ error: 'You have already applied to this job' });
@@ -45,7 +45,7 @@ router.post('/api/applications', async (req, res) => {
 
     const job = jobDetails[0];
     const hasGoldSubscription = job.employer_plan_name?.toLowerCase().includes('gold');
-    
+
     console.log('🏢 Employer details:', {
       email: job.employer_email,
       name: job.employer_first_name,
@@ -63,7 +63,7 @@ router.post('/api/applications', async (req, res) => {
     `, [userid]);
 
     const jobSeeker = jobSeekerDetails[0] || {};
-    
+
     console.log('👤 Job seeker details:', {
       email: jobSeeker.job_seeker_email,
       name: `${jobSeeker.job_seeker_first_name} ${jobSeeker.job_seeker_last_name}`,
@@ -92,7 +92,7 @@ router.post('/api/applications', async (req, res) => {
       ...application[0],
       emailStatus: emailResults
     });
-    
+
   } catch (err) {
     console.error('❌ Error in application:', err);
     res.status(500).json({ error: err.message });
@@ -137,44 +137,51 @@ async function sendApplicationEmails(job, jobSeeker, hasGoldSubscription) {
 
     // Email to Employer
     console.log('🏢 Sending email to employer:', job.employer_email);
+
+
+
+    // In the sendApplicationEmails function, update the employer email part:
     let employerEmailContent = `
-      <p>Hi ${job.employer_first_name || 'Employer'},</p>
-      <p>You have received a new application for your job posting: <strong>${job.job_title || 'N/A'}</strong></p>
-      <p><strong>Applicant Details:</strong></p>
-      <ul>
-        <li><strong>Name:</strong> ${jobSeeker.job_seeker_first_name || 'N/A'} ${jobSeeker.job_seeker_last_name || ''}</li>
-        <li><strong>Position Applied:</strong> ${job.domestic_worker_category || 'N/A'}</li>
-      </ul>
-    `;
+  <p>Hi ${job.employer_first_name || 'Employer'},</p>
+  <p>You have received a new application for your job posting: <strong>${job.job_title || 'N/A'}</strong></p>
+  <p><strong>Applicant Details:</strong></p>
+  <ul>
+    <li><strong>Name:</strong> ${jobSeeker.job_seeker_first_name || 'N/A'} ${jobSeeker.job_seeker_last_name || ''}</li>
+    <li><strong>Position Applied:</strong> ${job.domestic_worker_category || 'N/A'}</li>
+  </ul>
+`;
 
     // Include contact details if employer has Gold subscription
     if (hasGoldSubscription) {
       employerEmailContent += `
-        <p><strong>Contact Details (Gold Subscription Benefit):</strong></p>
-        <ul>
-          <li><strong>Email:</strong> ${jobSeeker.job_seeker_email || 'N/A'}</li>
-          <li><strong>Phone:</strong> ${jobSeeker.whatsapp_number || jobSeeker.phone_number || 'N/A'}</li>
-          ${jobSeeker.nationality ? `<li><strong>Nationality:</strong> ${jobSeeker.nationality}</li>` : ''}
-          ${jobSeeker.total_work_experience ? `<li><strong>Experience:</strong> ${jobSeeker.total_work_experience}</li>` : ''}
-        </ul>
-        <p>You can contact the candidate directly using the above details.</p>
-      `;
+    <p><strong>Contact Details (Gold Subscription Benefit):</strong></p>
+    <ul>
+      <li><strong>Email:</strong> ${jobSeeker.job_seeker_email || 'N/A'}</li>
+      <li><strong>Phone:</strong> ${jobSeeker.whatsapp_number || jobSeeker.phone_number || 'N/A'}</li>
+      ${jobSeeker.nationality ? `<li><strong>Nationality:</strong> ${jobSeeker.nationality}</li>` : ''}
+      ${jobSeeker.total_work_experience ? `<li><strong>Experience:</strong> ${jobSeeker.total_work_experience}</li>` : ''}
+    </ul>
+    <p>You can contact the candidate directly using the above details.</p>
+  `;
     } else {
       employerEmailContent += `
-        <p><strong>Upgrade to Gold Subscription to get:</strong></p>
-        <ul>
-          <li>Direct access to candidate contact details</li>
-          <li>Faster communication with applicants</li>
-          <li>Priority listing in search results</li>
-          <li>Enhanced visibility for your job posts</li>
-        </ul>
-        <p>Upgrade now for a better hiring experience. To do so, please visit our website at https://gulfworker.net/login</p>
-      `;
+    <p><strong>Upgrade to Gold Subscription to get:</strong></p>
+    <ul>
+      <li>Direct access to candidate contact details</li>
+      <li>Faster communication with applicants</li>
+      <li>Priority listing in search results</li>
+      <li>Enhanced visibility for your job posts</li>
+    </ul>
+  `;
     }
 
+    // In your applicationRoutes.js, update the login link:
+    const subscriptionLink = `https://gulfworker.net/subscriptionplans?email=${encodeURIComponent(job.employer_email)}`;
+
     employerEmailContent += `
-      <p>Best regards,<br/>Gulf Helper Team</p>
-    `;
+  <p>Upgrade now for a better hiring experience. To view and manage applications, please <a href="${subscriptionLink}">login to your account</a>.</p>
+  <p>Best regards,<br/>Gulf Helper Team</p>
+`;
 
     try {
       await sendCustomEmail(
@@ -279,7 +286,7 @@ router.get('/api/applications', async (req, res) => {
 router.get('/api/applications/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const [application] = await db.query(
       'SELECT * FROM job_applications WHERE id = ?',
       [id]
@@ -300,7 +307,7 @@ router.patch('/api/applications/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    
+
     if (!status) {
       return res.status(400).json({ error: 'Status is required' });
     }
@@ -334,7 +341,7 @@ router.patch('/api/applications/:id/status', async (req, res) => {
 router.delete('/api/applications/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const [result] = await db.query(
       'DELETE FROM job_applications WHERE id = ?',
       [id]
