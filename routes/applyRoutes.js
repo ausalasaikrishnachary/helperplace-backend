@@ -151,6 +151,12 @@ async function sendApplicationEmails(job, jobSeeker, hasGoldSubscription) {
   </ul>
 `;
 
+    // Add profile link for ALL employers (Free, Silver, Gold)
+    const profileLink = `https://gulfworker.net/candidateview/${jobSeeker.user_id}/${jobSeeker.job_seeker_first_name}`;
+    employerEmailContent += `
+  <p><strong>View Candidate Full Profile:</strong> <a href="${profileLink}">${profileLink}</a></p>
+`;
+
     // Include contact details if employer has Gold subscription
     if (hasGoldSubscription) {
       employerEmailContent += `
@@ -175,13 +181,21 @@ async function sendApplicationEmails(job, jobSeeker, hasGoldSubscription) {
   `;
     }
 
-    // In your applicationRoutes.js, update the login link:
-    const subscriptionLink = `https://gulfworker.net/subscriptionplans?email=${encodeURIComponent(job.employer_email)}`;
+    // Update the subscription link and closing message
+// Update the subscription link and closing message - Only show upgrade for non-Gold subscribers
+const subscriptionLink = `https://gulfworker.net/subscriptionplans?email=${encodeURIComponent(job.employer_email)}`;
 
-    employerEmailContent += `
+if (hasGoldSubscription) {
+  employerEmailContent += `
+  <p>To view and manage applications, please <a href="${subscriptionLink}">login to your account</a>.</p>
+  <p>Best regards,<br/>Gulf Helper Team</p>
+`;
+} else {
+  employerEmailContent += `
   <p>Upgrade now for a better hiring experience. To view and manage applications, please <a href="${subscriptionLink}">login to your account</a>.</p>
   <p>Best regards,<br/>Gulf Helper Team</p>
 `;
+}
 
     try {
       await sendCustomEmail(
@@ -209,43 +223,43 @@ async function sendApplicationEmails(job, jobSeeker, hasGoldSubscription) {
 // Send job status email
 // Add this route to your backend routes
 router.post('/api/send-job-status-email', async (req, res) => {
-    try {
-        const { to, firstName, jobTitle, jobId, status } = req.body;
-        
-        console.log('📧 Sending job status email:', { to, firstName, jobTitle, status });
+  try {
+    const { to, firstName, jobTitle, jobId, status } = req.body;
 
-        if (!to || !firstName || !jobTitle || !status) {
-            return res.status(400).json({ 
-                error: 'Missing required fields: to, firstName, jobTitle, status' 
-            });
-        }
+    console.log('📧 Sending job status email:', { to, firstName, jobTitle, status });
 
-        const { sendJobApprovedEmail, sendJobRejectedEmail} = require('./emailService');
-
-        let emailResult;
-        
-        if (status === 'Approved') {
-            emailResult = await sendJobApprovedEmail(to, firstName, jobTitle, jobId);
-        } else if (status === 'Rejected') {
-            emailResult = await sendJobRejectedEmail(to, firstName, jobTitle, jobId);
-        } else {
-            return res.status(400).json({ error: 'Invalid status provided' });
-        }
-
-        console.log('✅ Job status email sent successfully');
-        res.status(200).json({ 
-            success: true, 
-            message: `Job ${status.toLowerCase()} email sent successfully`,
-            emailResult 
-        });
-
-    } catch (error) {
-        console.error('❌ Error sending job status email:', error);
-        res.status(500).json({ 
-            error: 'Failed to send job status email',
-            details: error.message 
-        });
+    if (!to || !firstName || !jobTitle || !status) {
+      return res.status(400).json({
+        error: 'Missing required fields: to, firstName, jobTitle, status'
+      });
     }
+
+    const { sendJobApprovedEmail, sendJobRejectedEmail } = require('./emailService');
+
+    let emailResult;
+
+    if (status === 'Approved') {
+      emailResult = await sendJobApprovedEmail(to, firstName, jobTitle, jobId);
+    } else if (status === 'Rejected') {
+      emailResult = await sendJobRejectedEmail(to, firstName, jobTitle, jobId);
+    } else {
+      return res.status(400).json({ error: 'Invalid status provided' });
+    }
+
+    console.log('✅ Job status email sent successfully');
+    res.status(200).json({
+      success: true,
+      message: `Job ${status.toLowerCase()} email sent successfully`,
+      emailResult
+    });
+
+  } catch (error) {
+    console.error('❌ Error sending job status email:', error);
+    res.status(500).json({
+      error: 'Failed to send job status email',
+      details: error.message
+    });
+  }
 });
 
 
