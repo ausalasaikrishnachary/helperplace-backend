@@ -190,6 +190,124 @@ router.post('/check-otp-status', (req, res) => {
 
 // Agency registration endpoint
 // Agency registration endpoint with file uploads
+// router.post('/agency', (req, res) => {
+//   upload(req, res, async function (err) {
+
+//     if (err) {
+//       console.error('Upload error:', err);
+//       return res.status(400).json({
+//         success: false,
+//         error: 'File upload failed',
+//         details: err.message
+//       });
+//     }
+
+//     try {
+
+//       const {
+//         agency_name, city, province, country, full_address,
+//         whatsapp_number_1, whatsapp_number_2, whatsapp_number_3, whatsapp_number_4,
+//         official_phone, email, website_url, owner_name, owner_nationality,
+//         owner_mobile, owner_email, manager_name, manager_nationality,
+//         manager_mobile, manager_email, password, role
+//       } = req.body;
+
+//       if (!agency_name || !email || !password) {
+//         return res.status(400).json({ error: 'Required fields are missing' });
+//       }
+
+//       // Check if email exists
+//       const [existingAgency] = await db.query(
+//         'SELECT id FROM agency_user WHERE email = ?',
+//         [email]
+//       );
+
+//       if (existingAgency.length > 0) {
+//         return res.status(400).json({ error: 'Email already registered' });
+//       }
+
+//       // ---------- STEP 1: CREATE RAZORPAY CUSTOMER ----------
+//       let razorpayCustomer;
+
+//       try {
+//         razorpayCustomer = await razorpay.customers.create({
+//           name: agency_name,
+//           email: email,
+//           contact: official_phone || owner_mobile || "",
+//           fail_existing: false
+//         });
+//       } catch (err) {
+//         console.error("Razorpay Customer Error:", err);
+//         return res.status(400).json({ error: "Failed to create Razorpay customer" });
+//       }
+
+//       const razorpay_customer_id = razorpayCustomer.id; // Eg: cust_ABC123
+
+//       // ---------- FILE PATHS ----------
+//       const files = req.files || {};
+//       const filePaths = {
+//         company_logo: files.company_logo?.[0] ? path.join('uploads', path.basename(files.company_logo[0].path)) : null,
+//         business_card: files.business_card?.[0] ? path.join('uploads', path.basename(files.business_card[0].path)) : null,
+//         license_copy: files.license_copy?.[0] ? path.join('uploads', path.basename(files.license_copy[0].path)) : null,
+//         owner_photo: files.owner_photo?.[0] ? path.join('uploads', path.basename(files.owner_photo[0].path)) : null,
+//         manager_photo: files.manager_photo?.[0] ? path.join('uploads', path.basename(files.manager_photo[0].path)) : null
+//       };
+
+//       // ---------- STEP 2: INSERT IN DB WITH customer_id ----------
+//       const query = `
+//         INSERT INTO agency_user (
+//           agency_name, city, province, country, full_address,
+//           whatsapp_number_1, whatsapp_number_2, whatsapp_number_3, whatsapp_number_4,
+//           official_phone, email, website_url, owner_name, owner_nationality,
+//           owner_mobile, owner_email, manager_name, manager_nationality,
+//           manager_mobile, manager_email, password, role, is_verified,
+//           company_logo, business_card, license_copy, owner_photo, manager_photo,
+//           razorpay_customer_id, created_at, updated_at
+//         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+//       `;
+
+//       const [result] = await db.query(query, [
+//         agency_name, city, province, country, full_address,
+//         whatsapp_number_1, whatsapp_number_2 || '', whatsapp_number_3 || '', whatsapp_number_4 || '',
+//         official_phone, email, website_url || '', owner_name, owner_nationality,
+//         owner_mobile, owner_email, manager_name, manager_nationality,
+//         manager_mobile, manager_email, password, role || 'agency_admin', 1,
+//         filePaths.company_logo, filePaths.business_card, filePaths.license_copy,
+//         filePaths.owner_photo, filePaths.manager_photo,
+//         razorpay_customer_id // ⭐ STORE RAZORPAY CUSTOMER ID
+//       ]);
+
+//       // otpStore.delete(email);
+
+//       res.status(201).json({
+//         id: result.insertId,
+//         message: 'Agency registered successfully',
+//         razorpay_customer_id,
+//         agency: {
+//           id: result.insertId,
+//           agency_name,
+//           email,
+//           role: 'agency_admin',
+//           is_verified: true
+//         }
+//       });
+
+//     } catch (err) {
+//       console.error('Error registering agency:', err);
+
+//       if (req.files) {
+//         Object.values(req.files).forEach(fileArray => {
+//           if (fileArray && fileArray[0] && fs.existsSync(fileArray[0].path)) {
+//             fs.unlinkSync(fileArray[0].path);
+//           }
+//         });
+//       }
+
+//       res.status(500).json({ error: err.message || 'Registration failed' });
+//     }
+//   });
+// });
+
 router.post('/agency', (req, res) => {
   upload(req, res, async function (err) {
 
@@ -227,21 +345,21 @@ router.post('/agency', (req, res) => {
       }
 
       // ---------- STEP 1: CREATE RAZORPAY CUSTOMER ----------
-      let razorpayCustomer;
+      // let razorpayCustomer;
 
-      try {
-        razorpayCustomer = await razorpay.customers.create({
-          name: agency_name,
-          email: email,
-          contact: official_phone || owner_mobile || "",
-          fail_existing: false
-        });
-      } catch (err) {
-        console.error("Razorpay Customer Error:", err);
-        return res.status(400).json({ error: "Failed to create Razorpay customer" });
-      }
+      // try {
+      //   razorpayCustomer = await razorpay.customers.create({
+      //     name: agency_name,
+      //     email: email,
+      //     contact: official_phone || owner_mobile || "",
+      //     fail_existing: false
+      //   });
+      // } catch (err) {
+      //   console.error("Razorpay Customer Error:", err);
+      //   return res.status(400).json({ error: "Failed to create Razorpay customer" });
+      // }
 
-      const razorpay_customer_id = razorpayCustomer.id; // Eg: cust_ABC123
+      // const razorpay_customer_id = razorpayCustomer.id; 
 
       // ---------- FILE PATHS ----------
       const files = req.files || {};
@@ -262,8 +380,8 @@ router.post('/agency', (req, res) => {
           owner_mobile, owner_email, manager_name, manager_nationality,
           manager_mobile, manager_email, password, role, is_verified,
           company_logo, business_card, license_copy, owner_photo, manager_photo,
-          razorpay_customer_id, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `;
 
       const [result] = await db.query(query, [
@@ -273,8 +391,7 @@ router.post('/agency', (req, res) => {
         owner_mobile, owner_email, manager_name, manager_nationality,
         manager_mobile, manager_email, password, role || 'agency_admin', 1,
         filePaths.company_logo, filePaths.business_card, filePaths.license_copy,
-        filePaths.owner_photo, filePaths.manager_photo,
-        razorpay_customer_id // ⭐ STORE RAZORPAY CUSTOMER ID
+        filePaths.owner_photo, filePaths.manager_photo
       ]);
 
       // otpStore.delete(email);
@@ -282,7 +399,7 @@ router.post('/agency', (req, res) => {
       res.status(201).json({
         id: result.insertId,
         message: 'Agency registered successfully',
-        razorpay_customer_id,
+        // razorpay_customer_id,
         agency: {
           id: result.insertId,
           agency_name,
@@ -307,7 +424,6 @@ router.post('/agency', (req, res) => {
     }
   });
 });
-
 
 
 // GET - All agencies

@@ -111,6 +111,103 @@ router.post('/verify-otp', async (req, res) => {
 });
 
 // Create a new user (with OTP verification)
+// router.post("/", async (req, res) => {
+//   const {
+//     email,
+//     mobile_number,
+//     password,
+//     first_name,
+//     last_name,
+//     role,
+//     source,
+//     location,
+//     language_preference,
+//     agency_uid,
+//     agency_mail,
+//     otp,
+//   } = req.body;
+
+//   try {
+//     // ✅ Step 1: Verify OTP
+//     const storedOtpData = otpStore.get(email);
+//     if (!storedOtpData || !storedOtpData.verified) {
+//       return res.status(400).json({ message: "Email not verified with OTP" });
+//     }
+
+//     // ✅ Step 2: Check if user already exists
+//     const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+//     if (existingUser.length > 0) {
+//       return res.status(400).json({ message: "Email already registered" });
+//     }
+
+//     let customer_id = null; // default null
+
+//     // ✅ Step 3: Create Razorpay customer only for employer role
+//     if (role?.toLowerCase() === "employer") {
+//       const customerPayload = {
+//         name: `${first_name || ""} ${last_name || ""}`.trim(),
+//         email: email,
+//         contact: mobile_number ? String(mobile_number) : undefined,
+//       };
+
+//       const razorpayCustomer = await razorpay.customers.create(customerPayload);
+//       customer_id = razorpayCustomer.id;
+//     }
+
+//     // ✅ Step 4: Insert user into MySQL (include customer_id if any)
+//     const query = `
+//       INSERT INTO users (
+//         email, mobile_number, password, first_name, last_name, 
+//         role, source, location, language_preference, agency_uid, 
+//         agency_mail, is_verified, customer_id
+//       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+//     `;
+
+//     const [result] = await db.query(query, [
+//       email,
+//       mobile_number,
+//       password,
+//       first_name,
+//       last_name,
+//       role,
+//       source,
+//       location,
+//       language_preference,
+//       agency_uid,
+//       agency_mail,
+//       1, // is_verified
+//       customer_id,
+//     ]);
+
+//     // ✅ Step 5: Send onboarding email
+//     await sendOnboardingEmails(email, first_name, last_name, role);
+
+//     // ✅ Step 6: Clear OTP after success
+//     otpStore.delete(email);
+
+//     // ✅ Step 7: Send response
+//     res.status(201).json({
+//       message: "User registered successfully",
+//       id: result.insertId,
+//       email,
+//       mobile_number,
+//       first_name,
+//       last_name,
+//       role,
+//       source,
+//       location,
+//       language_preference,
+//       agency_uid,
+//       agency_mail,
+//       is_verified: true,
+//       customer_id,
+//     });
+//   } catch (err) {
+//     console.error("Error:", err);
+//     res.status(500).json({ error: err.error?.description || err.message });
+//   }
+// });
+
 router.post("/", async (req, res) => {
   const {
     email,
@@ -140,27 +237,27 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ message: "Email already registered" });
     }
 
-    let customer_id = null; // default null
+    // let customer_id = null;
 
     // ✅ Step 3: Create Razorpay customer only for employer role
-    if (role?.toLowerCase() === "employer") {
-      const customerPayload = {
-        name: `${first_name || ""} ${last_name || ""}`.trim(),
-        email: email,
-        contact: mobile_number ? String(mobile_number) : undefined,
-      };
+    // if (role?.toLowerCase() === "employer") {
+    //   const customerPayload = {
+    //     name: `${first_name || ""} ${last_name || ""}`.trim(),
+    //     email: email,
+    //     contact: mobile_number ? String(mobile_number) : undefined,
+    //   };
 
-      const razorpayCustomer = await razorpay.customers.create(customerPayload);
-      customer_id = razorpayCustomer.id;
-    }
+    //   const razorpayCustomer = await razorpay.customers.create(customerPayload);
+    //   customer_id = razorpayCustomer.id;
+    // }
 
     // ✅ Step 4: Insert user into MySQL (include customer_id if any)
     const query = `
       INSERT INTO users (
         email, mobile_number, password, first_name, last_name, 
         role, source, location, language_preference, agency_uid, 
-        agency_mail, is_verified, customer_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        agency_mail, is_verified
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.query(query, [
@@ -175,8 +272,7 @@ router.post("/", async (req, res) => {
       language_preference,
       agency_uid,
       agency_mail,
-      1, // is_verified
-      customer_id,
+      1
     ]);
 
     // ✅ Step 5: Send onboarding email
@@ -200,7 +296,6 @@ router.post("/", async (req, res) => {
       agency_uid,
       agency_mail,
       is_verified: true,
-      customer_id,
     });
   } catch (err) {
     console.error("Error:", err);
