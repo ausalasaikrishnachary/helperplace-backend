@@ -913,32 +913,101 @@ router.post("/subscription/create", async (req, res) => {
   }
 });
 
+// router.put("/subscription/users/:id", async (req, res) => {
+//   try {
+//     const userId = req.params.id;
+//     const {
+//       subscription_plan_id,
+//       subscription,
+//       plan_id,
+//       plan_name,
+//       plan_days,
+//       plan_startdate,
+//       plan_enddate,
+//       payment_status,
+//       payment_amount,
+//       razorpay_subscription_id,
+//       customer_id,
+//       subscription_status
+//     } = req.body;
+
+//     // console.log("🟡 Updating User Subscription:", req.body);
+
+//     // if (!plan_id || !customer_id) {
+//     //   return res.status(400).json({
+//     //     success: false,
+//     //     message: "plan_id and customer_id are required",
+//     //   });
+//     // }
+
+//     // ✅ Convert to MySQL DateTime
+//     const mysqlPlanStartDate = convertToMySQLDateTime(plan_startdate);
+//     const mysqlPlanEndDate = convertToMySQLDateTime(plan_enddate);
+
+//     const [result] = await db.query(
+//       `UPDATE users 
+//        SET subscription_plan_id = ?, 
+//            subscription = ?, 
+//            plan_name = ?, 
+//            plan_days = ?, 
+//            plan_startdate = ?, 
+//            plan_enddate = ?, 
+//            next_duedate = ?,
+//            payment_status = ?, 
+//            payment_amount = ?, 
+//            razorpay_subscription_id = ?, 
+//            razorpay_plan_id = ? ,
+//            subscription_status = ?
+//        WHERE id = ?`,
+//       [
+//         subscription_plan_id,
+//         subscription,
+//         plan_name,
+//         plan_days,
+//         mysqlPlanStartDate,
+//         mysqlPlanEndDate,
+//         mysqlPlanEndDate,
+//         payment_status,
+//         payment_amount,
+//         razorpay_subscription_id,
+//         plan_id,
+//         subscription_status,
+//         userId,
+//       ]
+//     );
+
+//     if (result.affectedRows === 0) {
+//       return res.status(404).json({ success: false, message: "User not found" });
+//     }
+
+//     res.json({
+//       success: true,
+//       message: "Subscription details updated in MySQL successfully",
+//     });
+//   } catch (error) {
+//     console.error("❌ Error updating subscription:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: error.message || "Internal server error",
+//     });
+//   }
+// });
+
 router.put("/subscription/users/:id", async (req, res) => {
   try {
     const userId = req.params.id;
     const {
       subscription_plan_id,
       subscription,
-      plan_id,
+      // plan_id,
       plan_name,
       plan_days,
       plan_startdate,
       plan_enddate,
       payment_status,
-      payment_amount,
-      razorpay_subscription_id,
-      customer_id,
-      subscription_status
+      payment_amount
     } = req.body;
 
-    // console.log("🟡 Updating User Subscription:", req.body);
-
-    // if (!plan_id || !customer_id) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "plan_id and customer_id are required",
-    //   });
-    // }
 
     // ✅ Convert to MySQL DateTime
     const mysqlPlanStartDate = convertToMySQLDateTime(plan_startdate);
@@ -954,11 +1023,8 @@ router.put("/subscription/users/:id", async (req, res) => {
            plan_enddate = ?, 
            next_duedate = ?,
            payment_status = ?, 
-           payment_amount = ?, 
-           razorpay_subscription_id = ?, 
-           razorpay_plan_id = ? ,
-           subscription_status = ?
-       WHERE id = ?`,
+           payment_amount = ?
+        WHERE id = ?`,
       [
         subscription_plan_id,
         subscription,
@@ -969,9 +1035,6 @@ router.put("/subscription/users/:id", async (req, res) => {
         mysqlPlanEndDate,
         payment_status,
         payment_amount,
-        razorpay_subscription_id,
-        plan_id,
-        subscription_status,
         userId,
       ]
     );
@@ -1111,6 +1174,73 @@ router.get("/customer/:customer_id", async (req, res) => {
   }
 });
 
+// router.put('/subscription/agency_user/:id', async (req, res) => {
+//   try {
+//     const userId = req.params.id;
+//     const {
+//       subscription_plan_id,
+//       subscription,
+//       plan_id,
+//       plan_name,
+//       plan_days,
+//       plan_startdate,
+//       plan_enddate,
+//       payment_status,
+//       payment_amount,
+//       razorpay_subscription_id,
+//       customer_id,
+//       subscription_status
+//     } = req.body;
+
+//     // Prepare dates for MySQL
+//     const mysqlPlanStartDate = convertToMySQLDateTime(plan_startdate);
+//     const mysqlPlanEndDate = convertToMySQLDateTime(plan_enddate);
+
+//     // ✅ Update query
+//     const [result] = await db.query(
+//       `UPDATE agency_user 
+//         SET subscription_plan_id = ?, 
+//            subscription = ?, 
+//            plan_name = ?, 
+//            plan_days = ?, 
+//            plan_startdate = ?, 
+//            plan_enddate = ?, 
+//            next_duedate = ?,
+//            payment_status = ?, 
+//            payment_amount = ?, 
+//            razorpay_subscription_id = ?, 
+//            razorpay_plan_id = ? ,
+//            subscription_status = ?
+//        WHERE id = ?`,
+//       [
+//         subscription_plan_id,
+//         subscription,
+//         plan_name,
+//         plan_days,
+//         mysqlPlanStartDate,
+//         mysqlPlanEndDate,
+//         mysqlPlanEndDate,
+//         payment_status,
+//         payment_amount,
+//         razorpay_subscription_id,
+//         plan_id,
+//         subscription_status,
+//         userId,
+//       ]
+//     );
+
+//     if (result.affectedRows === 0) {
+//       return res.status(404).json({ success: false, message: "User not found" });
+//     }
+
+//     res.json({ success: true, message: "Subscription details updated successfully" });
+//   } catch (error) {
+//     console.error("Error updating subscription:", error);
+//     res.status(500).json({ success: false, message: "Internal server error" });
+//   }
+// });
+
+
 router.put('/subscription/agency_user/:id', async (req, res) => {
   try {
     const userId = req.params.id;
@@ -1123,10 +1253,7 @@ router.put('/subscription/agency_user/:id', async (req, res) => {
       plan_startdate,
       plan_enddate,
       payment_status,
-      payment_amount,
-      razorpay_subscription_id,
-      customer_id,
-      subscription_status
+      payment_amount
     } = req.body;
 
     // Prepare dates for MySQL
@@ -1144,10 +1271,7 @@ router.put('/subscription/agency_user/:id', async (req, res) => {
            plan_enddate = ?, 
            next_duedate = ?,
            payment_status = ?, 
-           payment_amount = ?, 
-           razorpay_subscription_id = ?, 
-           razorpay_plan_id = ? ,
-           subscription_status = ?
+           payment_amount = ?
        WHERE id = ?`,
       [
         subscription_plan_id,
@@ -1159,9 +1283,6 @@ router.put('/subscription/agency_user/:id', async (req, res) => {
         mysqlPlanEndDate,
         payment_status,
         payment_amount,
-        razorpay_subscription_id,
-        plan_id,
-        subscription_status,
         userId,
       ]
     );
