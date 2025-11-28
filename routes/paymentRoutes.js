@@ -31,8 +31,8 @@ router.post("/orders", async (req, res) => {
 router.post("/verify-payment", (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-    const key_secret = "YH5qifp0nv6z1m0ItHD3vQ3F";
- // const key_secret = "wAjLz2kbMonqvDkhqyoHnXpf";
+    // const key_secret = "YH5qifp0nv6z1m0ItHD3vQ3F";
+ const key_secret = "wAjLz2kbMonqvDkhqyoHnXpf";
 
   const sign = razorpay_order_id + "|" + razorpay_payment_id;
   const expectedSign = crypto
