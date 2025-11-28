@@ -89,9 +89,9 @@ router.post("/webhook/razorpay", async (req, res) => {
 
         const todayDate = getTodayDate();
 
-        const successMessage = `Dear ${customerName}, your payment of ${planCurrency} ${planAmount} for the Gudnet ${planName} plan has been successfully debited on ${todayDate}. Thank you for staying connected with Gudnet.`;
+        const successMessage = `Dear ${customerName}, your payment of ${planCurrency} ${planAmount} for the Gulf Worker ${planName} plan has been successfully debited on ${todayDate}. Thank you for staying connected with Gulf Worker.`;
 
-        const failureMessage = `Dear ${customerName}, your payment for the Gudnet ${planName} plan on ${todayDate} has failed. Please update your payment method to avoid service interruption.`;
+        const failureMessage = `Dear ${customerName}, your payment for the Gulf Worker ${planName} plan on ${todayDate} has failed. Please update your payment method to avoid service interruption.`;
 
         // ==============================
         //     EVENT: subscription.charged
@@ -143,7 +143,7 @@ router.post("/webhook/razorpay", async (req, res) => {
                         await transporter.sendMail({
                             from: ADMIN_EMAIL,
                             to: customerEmail,
-                            subject: "Gudnet Payment Confirmation",
+                            subject: "Gulf Worker Payment Confirmation",
                             text: successMessage,
                         });
 
@@ -163,7 +163,7 @@ router.post("/webhook/razorpay", async (req, res) => {
                     await transporter.sendMail({
                         from: ADMIN_EMAIL,
                         to: customerEmail,
-                        subject: "Gudnet Payment Failed",
+                        subject: "Gulf Worker Payment Failed",
                         text: failureMessage,
                     });
 

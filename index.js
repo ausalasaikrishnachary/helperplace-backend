@@ -72,7 +72,7 @@ require('./routes/inactivityChecker');
 
 // ✅ Schedule daily subscription reminder at 1:30 PM IST
 // cron.schedule('52 16 * * *', async () => {
-// cron.schedule('30 13 * * *', async () => {
+// cron.schedule('35 16 * * *', async () => {
 //   console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
 //   try {
 //     const result = await emailService.checkAndSendSubscriptionReminders(db);

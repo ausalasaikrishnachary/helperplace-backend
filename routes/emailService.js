@@ -148,22 +148,22 @@ const sendFreeTrialEndingReminder = async (to, firstName, endDate) => {
 };
 
 // 8️⃣ Subscription Renewal Confirmation
-const sendSubscriptionRenewalConfirmation = async (to, firstName, planName, endDate) => {
-    const formattedDate = new Date(endDate).toLocaleDateString();
-    const mailOptions = {
-        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
-        to,
-        subject: 'Subscription Renewal Confirmation',
-        html: `
-      <p>Hi ${firstName},</p>
-      <p>Your GulfWorker subscription (${planName}) has been successfully renewed!</p>
-      <p>Your new subscription end date is ${formattedDate}.</p>
-      <p>Thank you for continuing with us.</p>
-      <p>Warm regards,<br/>Gulf Hepler Team</p>
-    `
-    };
-    return transporter.sendMail(mailOptions);
-};
+// const sendSubscriptionRenewalConfirmation = async (to, firstName, planName, endDate) => {
+//     const formattedDate = new Date(endDate).toLocaleDateString();
+//     const mailOptions = {
+//         from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
+//         to,
+//         subject: 'Subscription Renewal Confirmation',
+//         html: `
+//       <p>Hi ${firstName},</p>
+//       <p>Your GulfWorker subscription (${planName}) has been successfully renewed!</p>
+//       <p>Your new subscription end date is ${formattedDate}.</p>
+//       <p>Thank you for continuing with us.</p>
+//       <p>Warm regards,<br/>Gulf Hepler Team</p>
+//     `
+//     };
+//     return transporter.sendMail(mailOptions);
+// };
 
 // 9️⃣ Plan Upgrade Suggestion (1 day before expiry)
 const sendPlanUpgradeSuggestion = async (to, firstName, currentPlan, endDate) => {
@@ -593,7 +593,7 @@ const checkAndSendSubscriptionReminders = async (db) => {
         // Find incomplete profiles for job seekers with valid emails (weekly check)
         const [incompleteProfile] = await db.execute(
             `SELECT user_id, first_name, email_id, columns_percentage, whatsapp_number, 
-                    last_incomplete_reminder_sent, last_whatsapp_reminder_sent
+                    last_incomplete_reminder_sent
              FROM job_seekers 
              WHERE columns_percentage < 100
              AND email_id IS NOT NULL
@@ -756,28 +756,28 @@ const checkAndSendSubscriptionReminders = async (db) => {
         }
 
         // WhatsApp number reminders (weekly)
-        const [missingWhatsapp] = await db.execute(
-            `SELECT user_id, first_name, email_id, columns_percentage, whatsapp_number, last_whatsapp_reminder_sent
-             FROM job_seekers 
-             WHERE (whatsapp_number IS NULL OR whatsapp_number = '')
-             AND email_id IS NOT NULL
-             AND email_id LIKE '%@%'
-             AND (last_whatsapp_reminder_sent IS NULL OR last_whatsapp_reminder_sent < DATE_SUB(NOW(), INTERVAL 7 DAY))`
-        );
+        // const [missingWhatsapp] = await db.execute(
+        //     `SELECT user_id, first_name, email_id, columns_percentage, whatsapp_number, last_whatsapp_reminder_sent
+        //      FROM job_seekers 
+        //      WHERE (whatsapp_number IS NULL OR whatsapp_number = '')
+        //      AND email_id IS NOT NULL
+        //      AND email_id LIKE '%@%'
+        //      AND (last_whatsapp_reminder_sent IS NULL OR last_whatsapp_reminder_sent < DATE_SUB(NOW(), INTERVAL 7 DAY))`
+        // );
 
-        for (const job_seeker of missingWhatsapp) {
-            await sendWhatsappNumberReminder(
-                job_seeker.email_id,
-                job_seeker.first_name
-            );
+        // for (const job_seeker of missingWhatsapp) {
+        //     await sendWhatsappNumberReminder(
+        //         job_seeker.email_id,
+        //         job_seeker.first_name
+        //     );
 
-            // Update last sent date
-            await db.execute(
-                `UPDATE job_seekers SET last_whatsapp_reminder_sent = NOW() WHERE user_id = ?`,
-                [job_seeker.user_id]
-            );
-            console.log(`Sent WhatsApp number reminder to ${job_seeker.email_id}`);
-        }
+        //     // Update last sent date
+        //     await db.execute(
+        //         `UPDATE job_seekers SET last_whatsapp_reminder_sent = NOW() WHERE user_id = ?`,
+        //         [job_seeker.user_id]
+        //     );
+        //     console.log(`Sent WhatsApp number reminder to ${job_seeker.email_id}`);
+        // }
 
         return {
             incompleteProfileRemindersSent: incompleteProfiles.length,
@@ -963,7 +963,7 @@ module.exports = {
     sendSubscriptionExpiredNotification,
     sendJobpostingexpiredNotification,
     sendFreeTrialEndingReminder,
-    sendSubscriptionRenewalConfirmation,
+    // sendSubscriptionRenewalConfirmation,
     sendPlanUpgradeSuggestion,
     sendLowViewsReminder,
     sendPaymentDueDateReminder,

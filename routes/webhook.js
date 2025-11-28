@@ -253,34 +253,34 @@ Time: ${todayTime}
                     // Email templates for different payment events
                     const emailTemplates = {
                         "payment.authorized": {
-                            subject: "Gudnet Payment Authorized",
+                            subject: "Gulf Worker Payment Authorized",
                             message: `Dear ${customerName},
 
-Your payment for the Gudnet ${planNameFinal} plan has been authorized.
+Your payment for the Gulf Worker ${planNameFinal} plan has been authorized.
 
 ${paymentDetails}
 
 The amount will be captured shortly. You will receive another confirmation once the payment is successfully processed.
 
-Thank you for choosing Gudnet!`
+Thank you for choosing Gulf Worker!`
                         },
                         "payment.captured": {
-                            subject: "Gudnet Payment Successful",
+                            subject: "Gulf Worker Payment Successful",
                             message: `Dear ${customerName},
 
-Your payment for the Gudnet ${planNameFinal} plan has been successfully processed.
+Your payment for the Gulf Worker ${planNameFinal} plan has been successfully processed.
 
 ${paymentDetails}
 
-Thank you for staying connected with Gudnet. Your subscription is now active and you can continue to enjoy our services.
+Thank you for staying connected with Gulf Worker. Your subscription is now active and you can continue to enjoy our services.
 
 If you have any questions, please contact our support team.`
                         },
                         "payment.failed": {
-                            subject: "Gudnet Payment Failed",
+                            subject: "Gulf Worker Payment Failed",
                             message: `Dear ${customerName},
 
-We were unable to process your payment for the Gudnet ${planNameFinal} plan.
+We were unable to process your payment for the Gulf Worker ${planNameFinal} plan.
 
 ${paymentDetails}
 
@@ -383,10 +383,10 @@ Your payments should now process normally. We apologize for any inconvenience ca
                     };
 
                     const template = emailTemplates[eventType] || {
-                        subject: `Gudnet Payment Update - ${eventType}`,
+                        subject: `Gulf Worker Payment Update - ${eventType}`,
                         message: `Dear ${customerName},
 
-There's an update regarding your payment for the Gudnet ${planNameFinal} plan.
+There's an update regarding your payment for the Gulf Worker ${planNameFinal} plan.
 
 ${paymentDetails}
 
