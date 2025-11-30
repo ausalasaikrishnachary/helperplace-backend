@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const razorpay = require("./razorpay");
 const otpStore = new Map();
+const { sendAgencyVerificationEmail } = require('./emailService'); // Adjust path as needed
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '../uploads');
@@ -308,6 +309,7 @@ router.post('/check-otp-status', (req, res) => {
 //   });
 // });
 
+// Agency registration endpoint with file uploads and country codes
 router.post('/agency', (req, res) => {
   upload(req, res, async function (err) {
 
@@ -324,10 +326,15 @@ router.post('/agency', (req, res) => {
 
       const {
         agency_name, city, province, country, full_address,
-        whatsapp_number_1, whatsapp_number_2, whatsapp_number_3, whatsapp_number_4,
-        official_phone, email, website_url, owner_name, owner_nationality,
-        owner_mobile, owner_email, manager_name, manager_nationality,
-        manager_mobile, manager_email, password, role
+        whatsapp_number_1, whatsapp_number_1_country_code,
+        whatsapp_number_2, whatsapp_number_2_country_code,
+        whatsapp_number_3, whatsapp_number_3_country_code,
+        whatsapp_number_4, whatsapp_number_4_country_code,
+        official_phone, official_phone_country_code,
+        email, website_url, owner_name, owner_nationality,
+        owner_mobile, owner_mobile_country_code, owner_email,
+        manager_name, manager_nationality, manager_mobile,
+        manager_mobile_country_code, manager_email, password, role
       } = req.body;
 
       if (!agency_name || !email || !password) {
@@ -344,23 +351,6 @@ router.post('/agency', (req, res) => {
         return res.status(400).json({ error: 'Email already registered' });
       }
 
-      // ---------- STEP 1: CREATE RAZORPAY CUSTOMER ----------
-      // let razorpayCustomer;
-
-      // try {
-      //   razorpayCustomer = await razorpay.customers.create({
-      //     name: agency_name,
-      //     email: email,
-      //     contact: official_phone || owner_mobile || "",
-      //     fail_existing: false
-      //   });
-      // } catch (err) {
-      //   console.error("Razorpay Customer Error:", err);
-      //   return res.status(400).json({ error: "Failed to create Razorpay customer" });
-      // }
-
-      // const razorpay_customer_id = razorpayCustomer.id; 
-
       // ---------- FILE PATHS ----------
       const files = req.files || {};
       const filePaths = {
@@ -371,35 +361,65 @@ router.post('/agency', (req, res) => {
         manager_photo: files.manager_photo?.[0] ? path.join('uploads', path.basename(files.manager_photo[0].path)) : null
       };
 
-      // ---------- STEP 2: INSERT IN DB WITH customer_id ----------
+      // ---------- STEP 2: INSERT IN DB WITH COUNTRY CODES ----------
       const query = `
         INSERT INTO agency_user (
           agency_name, city, province, country, full_address,
-          whatsapp_number_1, whatsapp_number_2, whatsapp_number_3, whatsapp_number_4,
-          official_phone, email, website_url, owner_name, owner_nationality,
-          owner_mobile, owner_email, manager_name, manager_nationality,
-          manager_mobile, manager_email, password, role, is_verified,
+          whatsapp_number_1, whatsapp_number_1_country_code,
+          whatsapp_number_2, whatsapp_number_2_country_code,
+          whatsapp_number_3, whatsapp_number_3_country_code,
+          whatsapp_number_4, whatsapp_number_4_country_code,
+          official_phone, official_phone_country_code,
+          email, website_url, owner_name, owner_nationality,
+          owner_mobile, owner_mobile_country_code, owner_email,
+          manager_name, manager_nationality, manager_mobile,
+          manager_mobile_country_code, manager_email, password, role, is_verified,
           company_logo, business_card, license_copy, owner_photo, manager_photo,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `;
 
       const [result] = await db.query(query, [
-        agency_name, city, province, country, full_address,
-        whatsapp_number_1, whatsapp_number_2 || '', whatsapp_number_3 || '', whatsapp_number_4 || '',
-        official_phone, email, website_url || '', owner_name, owner_nationality,
-        owner_mobile, owner_email, manager_name, manager_nationality,
-        manager_mobile, manager_email, password, role || 'agency_admin', 1,
-        filePaths.company_logo, filePaths.business_card, filePaths.license_copy,
-        filePaths.owner_photo, filePaths.manager_photo
+        agency_name,
+        city,
+        province,
+        country,
+        full_address,
+        whatsapp_number_1,
+        whatsapp_number_1_country_code, // No default - use what user selected
+        whatsapp_number_2 || '',
+        whatsapp_number_2_country_code, // No default - use what user selected
+        whatsapp_number_3 || '',
+        whatsapp_number_3_country_code, // No default - use what user selected
+        whatsapp_number_4 || '',
+        whatsapp_number_4_country_code, // No default - use what user selected
+        official_phone,
+        official_phone_country_code, // No default - use what user selected
+        email,
+        website_url || '',
+        owner_name,
+        owner_nationality,
+        owner_mobile,
+        owner_mobile_country_code, // No default - use what user selected
+        owner_email,
+        manager_name,
+        manager_nationality,
+        manager_mobile,
+        manager_mobile_country_code, // No default - use what user selected
+        manager_email,
+        password,
+        role || 'agency_admin',
+        1, // is_verified
+        filePaths.company_logo,
+        filePaths.business_card,
+        filePaths.license_copy,
+        filePaths.owner_photo,
+        filePaths.manager_photo
       ]);
-
-      // otpStore.delete(email);
 
       res.status(201).json({
         id: result.insertId,
         message: 'Agency registered successfully',
-        // razorpay_customer_id,
         agency: {
           id: result.insertId,
           agency_name,
@@ -412,6 +432,7 @@ router.post('/agency', (req, res) => {
     } catch (err) {
       console.error('Error registering agency:', err);
 
+      // Clean up uploaded files if registration fails
       if (req.files) {
         Object.values(req.files).forEach(fileArray => {
           if (fileArray && fileArray[0] && fs.existsSync(fileArray[0].path)) {
@@ -420,9 +441,30 @@ router.post('/agency', (req, res) => {
         });
       }
 
-      res.status(500).json({ error: err.message || 'Registration failed' });
+      res.status(500).json({
+        error: err.message || 'Registration failed',
+        details: 'Please try again later.'
+      });
     }
   });
+});
+
+// New route for sending agency verification email
+router.post('/send-agency-verification-email', async (req, res) => {
+  try {
+    const { to, firstName, agencyName } = req.body;
+
+    if (!to || !firstName || !agencyName) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    await sendAgencyVerificationEmail(to, firstName, agencyName);
+
+    res.json({ message: 'Verification email sent successfully' });
+  } catch (error) {
+    console.error('Error sending agency verification email:', error);
+    res.status(500).json({ error: 'Failed to send verification email' });
+  }
 });
 
 

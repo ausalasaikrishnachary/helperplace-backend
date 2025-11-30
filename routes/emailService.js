@@ -871,7 +871,7 @@ const sendCustomEmail = async (to_email, subject, message) => {
     try {
         console.log(`📧 Attempting to send email to: ${to_email}`);
         console.log(`📝 Subject: ${subject}`);
-        
+
         const mailOptions = {
             from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
             to: to_email,
@@ -884,9 +884,9 @@ const sendCustomEmail = async (to_email, subject, message) => {
         console.log('✅ Email sent successfully!');
         console.log('📨 Message ID:', result.messageId);
         console.log('✅ Response:', result.response);
-        
-        return { 
-            success: true, 
+
+        return {
+            success: true,
             message: 'Email sent successfully!',
             messageId: result.messageId,
             response: result.response
@@ -910,8 +910,7 @@ const sendJobApprovedEmail = async (to, firstName, jobTitle) => {
       <p>Hi ${firstName},</p>
       <p>We're pleased to inform you that your job posting <strong>"${jobTitle}"</strong> has been approved by our team!</p>
       <p>Your job is now live and visible to potential candidates on Gulf Worker.</p>
-      
-      <p><strong>Upgrade to Gold Subscription to get:</strong></p>
+      <p><strong style="color: #28a745;">Upgrade to Gold Subscription to get:</strong></p>
       <ul>
         <li>Direct access to candidate contact details</li>
         <li>Faster communication with applicants</li>
@@ -920,6 +919,41 @@ const sendJobApprovedEmail = async (to, firstName, jobTitle) => {
       </ul>
       
       <p>Upgrade now for a better hiring experience. To view and manage applications, please <a href="https://gulfworker.net/subscriptionplans?email=${encodeURIComponent(to)}">login to your account</a>.</p>
+      <p>Best regards,<br/>Gulf Helper Team</p>
+    `
+    };
+    return transporter.sendMail(mailOptions);
+};
+
+// Send agency verification approval email
+const sendAgencyVerificationEmail = async (to, firstName, agencyName) => {
+    const mailOptions = {
+        from: `"Gulf Helper Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: 'Your Agency Profile Has Been Verified!',
+        html: `
+      <p>Hi ${firstName},</p>
+      <p>We're pleased to inform you that your agency profile <strong>"${agencyName}"</strong> has been verified by our admin team!</p>
+      <p>Your agency is now fully activated on Gulf Worker. You can now:</p>
+      <ul>
+        <li>Post new job opportunities</li>
+        <li>Register new candidates</li>
+        <li>Access all agency features</li>
+        <li>Connect with employers and job seekers</li>
+      </ul>
+      <p>Start exploring the platform and make the most of your verified agency status.</p>
+      <p>
+        <a href="https://gulfworker.net/" 
+           style="display:inline-block; padding:12px 24px; margin:15px 0; 
+                  background-color:#28a745; color:#fff; text-decoration:none; 
+                  border-radius:5px; font-weight:bold;">
+          Visit GulfWorker.net
+        </a>
+      </p>
+      <p>Or copy and paste this link in your browser:<br/>
+        <a href="https://gulfworker.net/">https://gulfworker.net/</a>
+      </p>
+      <p>If you have any questions, feel free to contact our support team.</p>
       <p>Best regards,<br/>Gulf Helper Team</p>
     `
     };
@@ -937,7 +971,7 @@ const sendJobRejectedEmail = async (to, firstName, jobTitle) => {
       <p>We regret to inform you that your job posting <strong>"${jobTitle}"</strong> has been rejected by our team.</p>
       <p>This decision was made after careful review. Your job post does not meet our platform guidelines.</p>
       
-      <p><strong>Upgrade to Gold Subscription to get:</strong></p>
+    <p><strong style="color: #28a745;">Upgrade to Gold Subscription to get:</strong></p>
       <ul>
         <li>Direct access to candidate contact details</li>
         <li>Faster communication with applicants</li>
@@ -980,6 +1014,7 @@ module.exports = {
     sendContactFormConfirmation,
     sendAdminResponseEmail,
     sendCustomEmail,
-     sendJobApprovedEmail,
+    sendJobApprovedEmail,
     sendJobRejectedEmail,
+    sendAgencyVerificationEmail,
 };

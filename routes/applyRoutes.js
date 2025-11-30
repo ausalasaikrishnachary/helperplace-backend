@@ -171,7 +171,7 @@ async function sendApplicationEmails(job, jobSeeker, hasGoldSubscription) {
   `;
     } else {
       employerEmailContent += `
-    <p><strong>Upgrade to Gold Subscription to get:</strong></p>
+    <p><strong style="color: #28a745;">Upgrade to Gold Subscription to get:</strong></p>
     <ul>
       <li>Direct access to candidate contact details</li>
       <li>Faster communication with applicants</li>
