@@ -817,11 +817,11 @@ const sendProfileVerifiedEmail = async (to, firstName) => {
         to,
         subject: 'Your Profile Has Been Verified!',
         html: `
-      <p>Hi ${firstName},</p>
-      <p>We're pleased to inform you that your profile on Gulf Worker has been verified by our team!</p>
-      <p>This verification badge will make your profile more visible to employers and increase your chances of getting hired.</p>
-      <p>Log in to your account to see your verified status and explore new job opportunities.</p>
-      <p>Best regards,<br/>Gulf Hepler Team</p>
+     <p>Hi ${firstName},</p>
+<p>We're pleased to inform you that your profile on Gulf Worker has been verified by our team!</p>
+<p>This verification badge will make your profile more visible to employers and increase your chances of getting hired.</p>
+<p>Log in to your account at <a href="https://gulfworker.net/login">gulfworker.net/login</a> to see your verified status and explore new job opportunities.</p>
+<p>Best regards,<br/>Gulf Worker Team</p>
     `
     };
     return transporter.sendMail(mailOptions);

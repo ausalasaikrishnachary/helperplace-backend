@@ -212,6 +212,7 @@ router.post("/", async (req, res) => {
   const {
     email,
     mobile_number,
+    mobile_number_country_code,
     password,
     first_name,
     last_name,
@@ -254,15 +255,16 @@ router.post("/", async (req, res) => {
     // ✅ Step 4: Insert user into MySQL (include customer_id if any)
     const query = `
       INSERT INTO users (
-        email, mobile_number, password, first_name, last_name, 
+        email, mobile_number, mobile_number_country_code,  password, first_name, last_name, 
         role, source, location, language_preference, agency_uid, 
         agency_mail, is_verified
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.query(query, [
       email,
       mobile_number,
+      mobile_number_country_code,
       password,
       first_name,
       last_name,
@@ -307,15 +309,15 @@ router.post("/", async (req, res) => {
 // Update user
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { email, mobile_number, password, first_name, last_name, location, language_preference } = req.body;
+  const { email, mobile_number, mobile_number_country_code, password, first_name, last_name, location, language_preference } = req.body;
   try {
     const query = `
-      UPDATE users SET email = ?, mobile_number = ?, password = ?, first_name = ?, last_name = ?,  
+      UPDATE users SET email = ?, mobile_number = ?, mobile_number_country_code = ?,  password = ?, first_name = ?, last_name = ?,  
       location = ?, language_preference = ?
       WHERE id = ?
     `;
     await db.query(query, [
-      email, mobile_number, password, first_name, last_name,
+      email, mobile_number, mobile_number_country_code, password, first_name, last_name,
       location, language_preference, id
     ]);
     res.json({ message: 'User updated successfully' });
