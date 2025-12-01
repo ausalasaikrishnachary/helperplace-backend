@@ -224,7 +224,7 @@ router.post('/check-otp-status', (req, res) => {
 //       );
 
 //       if (existingAgency.length > 0) {
-//         return res.status(400).json({ error: 'Email already registered' });
+//         return res.status(400).json({ error: 'This email already registered' });
 //       }
 
 //       // ---------- STEP 1: CREATE RAZORPAY CUSTOMER ----------
@@ -348,7 +348,7 @@ router.post('/agency', (req, res) => {
       );
 
       if (existingAgency.length > 0) {
-        return res.status(400).json({ error: 'Email already registered' });
+        return res.status(400).json({ error: 'This email already registered' });
       }
 
       // ---------- FILE PATHS ----------

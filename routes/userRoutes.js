@@ -49,7 +49,7 @@ router.post('/send-reg-otp', async (req, res) => {
     // Check if email already exists
     const [existingUser] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
     if (existingUser.length > 0) {
-      return res.status(400).json({ message: 'Email already registered' });
+      return res.status(400).json({ message: 'This email already registered' });
     }
 
     // Generate and store OTP (valid for 10 minutes)
@@ -137,7 +137,7 @@ router.post('/verify-otp', async (req, res) => {
 //     // ✅ Step 2: Check if user already exists
 //     const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
 //     if (existingUser.length > 0) {
-//       return res.status(400).json({ message: "Email already registered" });
+//       return res.status(400).json({ message: "This email already registered" });
 //     }
 
 //     let customer_id = null; // default null
@@ -235,7 +235,7 @@ router.post("/", async (req, res) => {
     // ✅ Step 2: Check if user already exists
     const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
     if (existingUser.length > 0) {
-      return res.status(400).json({ message: "Email already registered" });
+      return res.status(400).json({ message: "This email already registered" });
     }
 
     // let customer_id = null;
