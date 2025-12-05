@@ -72,7 +72,7 @@ require('./routes/inactivityChecker');
 
 // ✅ Schedule daily subscription reminder at 1:30 PM IST
 // cron.schedule('52 16 * * *', async () => {
-// cron.schedule('35 16 * * *', async () => {
+// cron.schedule('49 15 * * *', async () => {
 //   console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
 //   try {
 //     const result = await emailService.checkAndSendSubscriptionReminders(db);
@@ -83,10 +83,20 @@ require('./routes/inactivityChecker');
 // }, {
 //   timezone: 'Asia/Kolkata'
 // });
-
+cron.schedule('03 16 * * *', async () => {
+  console.log('⏰ [IST] Running scheduled subscription reminders at 1:30 PM');
+  try {
+    const result = await emailService.sendIncompleteProfileReminder(db);
+    console.log('✅ Subscription reminders processed:', result);
+  } catch (err) {
+    console.error('❌ Error in scheduled subscription reminders:', err); 
+  }
+}, {
+  timezone: 'Asia/Kolkata'
+});
 
 // ✅ Schedule daily payment due date reminder at 10:00 AM IST
-cron.schedule('05 08 * * *', async () => {
+cron.schedule('33 15 * * *', async () => {
   console.log('⏰ [IST] Running scheduled payment due date reminders at 10:00 AM');
   try {
     const result = await emailService.checkAndSendPaymentDueDateReminders(db);

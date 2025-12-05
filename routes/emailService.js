@@ -305,10 +305,10 @@ const sendProfileRejectedEmail = async (to, firstName) => {
 
 const sendIncompleteProfileReminder = async (to, firstName, completionPercentage) => {
     // Skip if no valid email address
-    if (!to || typeof to !== 'string' || !to.includes('@')) {
-        console.log(`Skipping incomplete profile reminder - invalid recipient: ${to}`);
-        return false;
-    }
+    // if (!to || typeof to !== 'string' || !to.includes('@')) {
+    //     console.log(`Skipping incomplete profile reminder - invalid recipient: ${to}`);
+    //     return false;
+    // }
 
     const mailOptions = {
         from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
@@ -324,7 +324,7 @@ const sendIncompleteProfileReminder = async (to, firstName, completionPercentage
       <li>Access all platform features</li>
     </ul>
     <p>
-      <a href="https://gulfworker.net/" 
+      <a href="https://gulfworker.net/login" 
          style="display:inline-block; padding:10px 20px; margin:10px 0; 
                 background-color:#0d6efd; color:#fff; text-decoration:none; 
                 border-radius:5px; font-weight:bold;">
@@ -332,7 +332,7 @@ const sendIncompleteProfileReminder = async (to, firstName, completionPercentage
       </a>
     </p>
     <p>Or you can copy and paste this link in your browser:<br/>
-      <a href="https://gulfworker.net/">https://gulfworker.net/</a>
+      <a href="https://gulfworker.net/login/">https://gulfworker.net/login/</a>
     </p>
     <p>Best regards,<br/>Gulf Hepler Team</p>
   `
@@ -534,37 +534,37 @@ const checkAndSendSubscriptionReminders = async (db) => {
         const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
         // Find job seekers with plans ending tomorrow who came through Agency
-        const [jobSeekersPlansEnding] = await db.execute(
-            `SELECT user_id, first_name, agency_mail, plan_enddate, subscription_plan, 
-                    last_upgrade_email_sent
-             FROM job_seekers 
-             WHERE plan_enddate = ? 
-             AND subscription_plan IS NOT NULL
-             AND LOWER(source) = 'agency'
-             AND agency_mail IS NOT NULL
-             AND agency_mail LIKE '%@%'
-             AND (last_upgrade_email_sent IS NULL OR last_upgrade_email_sent < DATE_SUB(NOW(), INTERVAL 7 DAY))`,
-            [tomorrowStr]
-        );
+        // const [jobSeekersPlansEnding] = await db.execute(
+        //     `SELECT user_id, first_name, agency_mail, plan_enddate, subscription_plan, 
+        //             last_upgrade_email_sent
+        //      FROM job_seekers 
+        //      WHERE plan_enddate = ? 
+        //      AND subscription_plan IS NOT NULL
+        //      AND LOWER(source) = 'agency'
+        //      AND agency_mail IS NOT NULL
+        //      AND agency_mail LIKE '%@%'
+        //      AND (last_upgrade_email_sent IS NULL OR last_upgrade_email_sent < DATE_SUB(NOW(), INTERVAL 7 DAY))`,
+        //     [tomorrowStr]
+        // );
 
         // Send plan upgrade suggestions to job seekers
-        for (const jobSeeker of jobSeekersPlansEnding) {
-            const sent = await sendPlanUpgradeEmailToJobSeeker(
-                jobSeeker.agency_mail,
-                jobSeeker.first_name,
-                jobSeeker.subscription_plan,
-                jobSeeker.plan_enddate
-            );
+        // for (const jobSeeker of jobSeekersPlansEnding) {
+        //     const sent = await sendPlanUpgradeEmailToJobSeeker(
+        //         jobSeeker.agency_mail,
+        //         jobSeeker.first_name,
+        //         jobSeeker.subscription_plan,
+        //         jobSeeker.plan_enddate
+        //     );
 
-            if (sent) {
-                // Update last sent date
-                await db.execute(
-                    `UPDATE job_seekers SET last_upgrade_email_sent = NOW() WHERE user_id = ?`,
-                    [jobSeeker.user_id]
-                );
-                console.log(`Sent plan upgrade suggestion to job seeker ${jobSeeker.agency_mail}`);
-            }
-        }
+        //     if (sent) {
+        //         // Update last sent date
+        //         await db.execute(
+        //             `UPDATE job_seekers SET last_upgrade_email_sent = NOW() WHERE user_id = ?`,
+        //             [jobSeeker.user_id]
+        //         );
+        //         console.log(`Sent plan upgrade suggestion to job seeker ${jobSeeker.agency_mail}`);
+        //     }
+        // }
 
         // Find incomplete profiles with last reminder sent more than 7 days ago or never
         const [incompleteProfiles] = await db.execute(
@@ -620,140 +620,140 @@ const checkAndSendSubscriptionReminders = async (db) => {
         }
 
         // Find subscriptions expiring in exactly 7 days (only send once per expiry)
-        const [expiringSoon] = await db.execute(
-            `SELECT e.user_id, e.name, e.email_id, e.plan_enddate, e.plan_name, e.last_expiry_reminder_sent
-             FROM employer e
-             WHERE e.plan_enddate = ?
-             AND (e.last_expiry_reminder_sent IS NULL OR e.last_expiry_reminder_sent < e.plan_enddate)`,
-            [oneWeekLaterStr]
-        );
+        // const [expiringSoon] = await db.execute(
+        //     `SELECT e.user_id, e.name, e.email_id, e.plan_enddate, e.plan_name, e.last_expiry_reminder_sent
+        //      FROM employer e
+        //      WHERE e.plan_enddate = ?
+        //      AND (e.last_expiry_reminder_sent IS NULL OR e.last_expiry_reminder_sent < e.plan_enddate)`,
+        //     [oneWeekLaterStr]
+        // );
 
-        // Find subscriptions expiring today (only send once)
-        const [expiringToday] = await db.execute(
-            `SELECT e.user_id, e.name, e.email_id, e.plan_enddate, e.plan_name, e.last_expired_notification_sent
-             FROM employer e
-             WHERE e.plan_enddate = ?
-             AND (e.last_expired_notification_sent IS NULL OR e.last_expired_notification_sent < e.plan_enddate)`,
-            [todayStr]
-        );
+        // // Find subscriptions expiring today (only send once)
+        // const [expiringToday] = await db.execute(
+        //     `SELECT e.user_id, e.name, e.email_id, e.plan_enddate, e.plan_name, e.last_expired_notification_sent
+        //      FROM employer e
+        //      WHERE e.plan_enddate = ?
+        //      AND (e.last_expired_notification_sent IS NULL OR e.last_expired_notification_sent < e.plan_enddate)`,
+        //     [todayStr]
+        // );
 
-        // Find free trials ending tomorrow (only for 'free posting' plans, send once)
-        const [freeTrialsEnding] = await db.execute(
-            `SELECT e.user_id, e.name, e.email_id, e.plan_enddate, e.plan_name, e.last_trial_ending_reminder_sent
-             FROM employer e
-             WHERE e.plan_enddate = ? AND e.plan_name = 'free posting'
-             AND (e.last_trial_ending_reminder_sent IS NULL OR e.last_trial_ending_reminder_sent < e.plan_enddate)`,
-            [tomorrowStr]
-        );
+        // // Find free trials ending tomorrow (only for 'free posting' plans, send once)
+        // const [freeTrialsEnding] = await db.execute(
+        //     `SELECT e.user_id, e.name, e.email_id, e.plan_enddate, e.plan_name, e.last_trial_ending_reminder_sent
+        //      FROM employer e
+        //      WHERE e.plan_enddate = ? AND e.plan_name = 'free posting'
+        //      AND (e.last_trial_ending_reminder_sent IS NULL OR e.last_trial_ending_reminder_sent < e.plan_enddate)`,
+        //     [tomorrowStr]
+        // );
 
-        // Find all plans ending tomorrow (for upgrade suggestions, weekly)
-        const [plansEndingTomorrow] = await db.execute(
-            `SELECT e.user_id, e.name, e.email_id, e.plan_enddate, e.plan_name, e.last_upgrade_suggestion_sent
-             FROM employer e
-             WHERE e.plan_enddate = ?
-             AND (e.last_upgrade_suggestion_sent IS NULL OR e.last_upgrade_suggestion_sent < DATE_SUB(NOW(), INTERVAL 7 DAY))`,
-            [tomorrowStr]
-        );
+        // // Find all plans ending tomorrow (for upgrade suggestions, weekly)
+        // const [plansEndingTomorrow] = await db.execute(
+        //     `SELECT e.user_id, e.name, e.email_id, e.plan_enddate, e.plan_name, e.last_upgrade_suggestion_sent
+        //      FROM employer e
+        //      WHERE e.plan_enddate = ?
+        //      AND (e.last_upgrade_suggestion_sent IS NULL OR e.last_upgrade_suggestion_sent < DATE_SUB(NOW(), INTERVAL 7 DAY))`,
+        //     [tomorrowStr]
+        // );
 
-        // Send reminders for subscriptions expiring in 7 days
-        for (const employer of expiringSoon) {
-            await sendSubscriptionExpiryReminder(
-                employer.email_id,
-                employer.name,
-                employer.plan_enddate
-            );
+        // // Send reminders for subscriptions expiring in 7 days
+        // for (const employer of expiringSoon) {
+        //     await sendSubscriptionExpiryReminder(
+        //         employer.email_id,
+        //         employer.name,
+        //         employer.plan_enddate
+        //     );
 
-            // Mark as sent for this expiry period
-            await db.execute(
-                `UPDATE employer SET last_expiry_reminder_sent = NOW() WHERE user_id = ?`,
-                [employer.user_id]
-            );
-            console.log(`Sent expiry reminder to ${employer.email_id}`);
-        }
+        //     // Mark as sent for this expiry period
+        //     await db.execute(
+        //         `UPDATE employer SET last_expiry_reminder_sent = NOW() WHERE user_id = ?`,
+        //         [employer.user_id]
+        //     );
+        //     console.log(`Sent expiry reminder to ${employer.email_id}`);
+        // }
 
-        // Send notifications for subscriptions expiring today
-        for (const employer of expiringToday) {
-            // Send subscription expired notification
-            await sendSubscriptionExpiredNotification(
-                employer.email_id,
-                employer.name
-            );
+        // // Send notifications for subscriptions expiring today
+        // for (const employer of expiringToday) {
+        //     // Send subscription expired notification
+        //     await sendSubscriptionExpiredNotification(
+        //         employer.email_id,
+        //         employer.name
+        //     );
 
-            // Send job postings expired notification
-            await sendJobpostingexpiredNotification(
-                employer.email_id,
-                employer.name
-            );
+        //     // Send job postings expired notification
+        //     await sendJobpostingexpiredNotification(
+        //         employer.email_id,
+        //         employer.name
+        //     );
 
-            // Mark as sent
-            await db.execute(
-                `UPDATE employer SET last_expired_notification_sent = NOW() WHERE user_id = ?`,
-                [employer.user_id]
-            );
-            console.log(`Sent expiry notifications to ${employer.email_id}`);
-        }
+        //     // Mark as sent
+        //     await db.execute(
+        //         `UPDATE employer SET last_expired_notification_sent = NOW() WHERE user_id = ?`,
+        //         [employer.user_id]
+        //     );
+        //     console.log(`Sent expiry notifications to ${employer.email_id}`);
+        // }
 
-        // Send free trial ending reminders
-        for (const employer of freeTrialsEnding) {
-            await sendFreeTrialEndingReminder(
-                employer.email_id,
-                employer.name,
-                employer.plan_enddate
-            );
+        // // Send free trial ending reminders
+        // for (const employer of freeTrialsEnding) {
+        //     await sendFreeTrialEndingReminder(
+        //         employer.email_id,
+        //         employer.name,
+        //         employer.plan_enddate
+        //     );
 
-            // Mark as sent
-            await db.execute(
-                `UPDATE employer SET last_trial_ending_reminder_sent = NOW() WHERE user_id = ?`,
-                [employer.user_id]
-            );
-            console.log(`Sent free trial ending reminder to ${employer.email_id}`);
-        }
+        //     // Mark as sent
+        //     await db.execute(
+        //         `UPDATE employer SET last_trial_ending_reminder_sent = NOW() WHERE user_id = ?`,
+        //         [employer.user_id]
+        //     );
+        //     console.log(`Sent free trial ending reminder to ${employer.email_id}`);
+        // }
 
-        // Send plan upgrade suggestions (weekly)
-        for (const employer of plansEndingTomorrow) {
-            const plan = employer.plan_name.toLowerCase();
+        // // Send plan upgrade suggestions (weekly)
+        // for (const employer of plansEndingTomorrow) {
+        //     const plan = employer.plan_name.toLowerCase();
 
-            if (plan === 'free posting' || plan === 'silver') {
-                await sendPlanUpgradeSuggestion(
-                    employer.email_id,
-                    employer.name,
-                    employer.plan_name,
-                    employer.plan_enddate
-                );
+        //     if (plan === 'free posting' || plan === 'silver') {
+        //         await sendPlanUpgradeSuggestion(
+        //             employer.email_id,
+        //             employer.name,
+        //             employer.plan_name,
+        //             employer.plan_enddate
+        //         );
 
-                // Update last sent date
-                await db.execute(
-                    `UPDATE employer SET last_upgrade_suggestion_sent = NOW() WHERE user_id = ?`,
-                    [employer.user_id]
-                );
-                console.log(`📧 Sent plan upgrade suggestion to ${employer.email_id}`);
-            }
-        }
+        //         // Update last sent date
+        //         await db.execute(
+        //             `UPDATE employer SET last_upgrade_suggestion_sent = NOW() WHERE user_id = ?`,
+        //             [employer.user_id]
+        //         );
+        //         console.log(`📧 Sent plan upgrade suggestion to ${employer.email_id}`);
+        //     }
+        // }
 
-        // Check for low views (weekly)
-        const [lowViewEmployers] = await db.execute(`
-            SELECT id, name, email_id, view_count, last_low_views_reminder_sent
-            FROM employer
-            WHERE view_count <= 5 
-            AND (last_low_views_reminder_sent IS NULL OR last_low_views_reminder_sent < DATE_SUB(NOW(), INTERVAL 7 DAY))
-        `);
+        // // Check for low views (weekly)
+        // const [lowViewEmployers] = await db.execute(`
+        //     SELECT id, name, email_id, view_count, last_low_views_reminder_sent
+        //     FROM employer
+        //     WHERE view_count <= 5 
+        //     AND (last_low_views_reminder_sent IS NULL OR last_low_views_reminder_sent < DATE_SUB(NOW(), INTERVAL 7 DAY))
+        // `);
 
-        // Send reminders for low view counts
-        for (const employer of lowViewEmployers) {
-            await sendLowViewsReminder(
-                employer.email_id,
-                employer.name,
-                "Your Profile/Post",
-                employer.view_count
-            );
+        // // Send reminders for low view counts
+        // for (const employer of lowViewEmployers) {
+        //     await sendLowViewsReminder(
+        //         employer.email_id,
+        //         employer.name,
+        //         "Your Profile/Post",
+        //         employer.view_count
+        //     );
 
-            // Update last sent date
-            await db.execute(
-                `UPDATE employer SET last_low_views_reminder_sent = NOW() WHERE id = ?`,
-                [employer.id]
-            );
-            console.log(`Sent low views reminder to ${employer.email_id}`);
-        }
+        //     // Update last sent date
+        //     await db.execute(
+        //         `UPDATE employer SET last_low_views_reminder_sent = NOW() WHERE id = ?`,
+        //         [employer.id]
+        //     );
+        //     console.log(`Sent low views reminder to ${employer.email_id}`);
+        // }
 
         // WhatsApp number reminders (weekly)
         // const [missingWhatsapp] = await db.execute(
@@ -782,13 +782,13 @@ const checkAndSendSubscriptionReminders = async (db) => {
         return {
             incompleteProfileRemindersSent: incompleteProfiles.length,
             incompleteProfileReminderSent: incompleteProfile.length,
-            expiringSoonCount: expiringSoon.length,
-            expiringTodayCount: expiringToday.length,
-            freeTrialsEndingCount: freeTrialsEnding.length,
-            upgradeSuggestionsSent: plansEndingTomorrow.length,
-            lowViewRemindersSent: lowViewEmployers.length,
-            jobSeekerUpgradeSuggestionsSent: jobSeekersPlansEnding.length,
-            whatsappRemindersSent: missingWhatsapp.length
+            // expiringSoonCount: expiringSoon.length,
+            // expiringTodayCount: expiringToday.length,
+            // freeTrialsEndingCount: freeTrialsEnding.length,
+            // // upgradeSuggestionsSent: plansEndingTomorrow.length,
+            // lowViewRemindersSent: lowViewEmployers.length,
+            // jobSeekerUpgradeSuggestionsSent: jobSeekersPlansEnding.length,
+            // whatsappRemindersSent: missingWhatsapp.length
         };
     } catch (err) {
         console.error('Error in subscription reminders:', err);
