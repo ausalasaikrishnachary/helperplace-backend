@@ -282,15 +282,15 @@ router.put('/job-seeker/:id', async (req, res) => {
 });
 
 // ✅ DELETE: Delete by ID
-router.delete('/job-seeker/:id', async (req, res) => {
-  try {
-    const userId = req.params.id;
-    await db.query('DELETE FROM job_seekers WHERE user_id = ?', [userId]);
-    res.json({ message: 'Job seeker deleted' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// router.delete('/job-seeker/:id', async (req, res) => {
+//   try {
+//     const userId = req.params.id;
+//     await db.query('DELETE FROM job_seekers WHERE user_id = ?', [userId]);
+//     res.json({ message: 'Job seeker deleted' });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 
 // ✅ DELETE: Delete only profile photo
 router.delete('/job-seeker/:id/photo', async (req, res) => {

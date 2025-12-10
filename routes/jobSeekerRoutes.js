@@ -380,15 +380,15 @@ router.put('/job-seeker/:id', async (req, res) => {
 });
 
 // ✅ DELETE: Delete by ID
-router.delete('/job-seeker/:id', async (req, res) => {
-  try {
-    const userId = req.params.id;
-    await db.query('DELETE FROM job_seekers WHERE user_id = ?', [userId]);
-    res.json({ message: 'Job seeker deleted' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// router.delete('/job-seeker/:id', async (req, res) => {
+//   try {
+//     const userId = req.params.id;
+//     await db.query('DELETE FROM job_seekers WHERE user_id = ?', [userId]);
+//     res.json({ message: 'Job seeker deleted' });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 
 // ✅ DELETE: Delete only profile photo
 router.delete('/job-seeker/:id/photo', async (req, res) => {
@@ -753,6 +753,79 @@ router.get('/job-seeker/merged/:id', async (req, res) => {
   } catch (err) {
     console.error('Error in merged job-seeker GET:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ DELETE: Delete user from both users and job_seekers tables
+router.delete('/user/:id', async (req, res) => {
+  let connection;
+  try {
+    const userId = req.params.id;
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    // Check if user exists
+    const [userExists] = await connection.query(
+      'SELECT id FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (userExists.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // 1. Delete from job_seekers table first (foreign key constraint might exist)
+    const [jobSeekerResult] = await connection.query(
+      'DELETE FROM job_seekers WHERE user_id = ?',
+      [userId]
+    );
+
+    // 2. Delete from doctor_profile table if exists
+    await connection.query(
+      'DELETE FROM doctor_profile WHERE dtr_user_id = ?',
+      [userId]
+    );
+
+    // 3. Delete from users table
+    const [userResult] = await connection.query(
+      'DELETE FROM users WHERE id = ?',
+      [userId]
+    );
+
+    await connection.commit();
+
+    res.json({ 
+      success: true,
+      message: 'User and related data deleted successfully',
+      deletedFromJobSeekers: jobSeekerResult.affectedRows > 0,
+      deletedFromUsers: userResult.affectedRows > 0
+    });
+
+  } catch (err) {
+    if (connection) await connection.rollback();
+    console.error('Error deleting user:', err);
+    
+    // Handle foreign key constraint errors
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED' || 
+        err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW') {
+      return res.status(409).json({ 
+        success: false, 
+        message: 'Cannot delete user. User has related records in other tables.',
+        error: err.message 
+      });
+    }
+
+    res.status(500).json({ 
+      success: false, 
+      error: err.message,
+      message: 'Failed to delete user'
+    });
+  } finally {
+    if (connection) connection.release();
   }
 });
 

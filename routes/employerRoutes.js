@@ -1410,4 +1410,107 @@ router.get("/transactions", async (req, res) => {
   }
 });
 
+
+// ✅ DELETE: Delete user and employer data from both tables
+router.delete("/employer/user/:userId", async (req, res) => {
+  let connection;
+  try {
+    const userId = req.params.userId;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "User ID is required" 
+      });
+    }
+
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    // 1. Get employer data to delete profile photo if exists
+    const [employerRecords] = await connection.execute(
+      `SELECT profile_photo FROM employer WHERE user_id = ?`,
+      [userId]
+    );
+
+    // 2. Get user data for logging/reference
+    const [userRecords] = await connection.execute(
+      `SELECT email, first_name, last_name FROM users WHERE id = ?`,
+      [userId]
+    );
+
+    if (userRecords.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found" 
+      });
+    }
+
+    // 3. Delete from employer table first
+    const [employerDeleteResult] = await connection.execute(
+      `DELETE FROM employer WHERE user_id = ?`,
+      [userId]
+    );
+
+    // 4. Delete from users table
+    const [userDeleteResult] = await connection.execute(
+      `DELETE FROM users WHERE id = ?`,
+      [userId]
+    );
+
+    // 5. Delete profile photo files if they exist
+    if (employerRecords.length > 0) {
+      for (const record of employerRecords) {
+        if (record.profile_photo) {
+          try {
+            const photoPath = path.join(imagesDir, path.basename(record.profile_photo));
+            if (fs.existsSync(photoPath)) {
+              fs.unlinkSync(photoPath);
+            }
+          } catch (fileErr) {
+            console.error(`Error deleting profile photo: ${fileErr.message}`);
+            // Continue with deletion even if file deletion fails
+          }
+        }
+      }
+    }
+
+    await connection.commit();
+
+    const userInfo = userRecords[0];
+    const userName = `${userInfo.first_name || ''} ${userInfo.last_name || ''}`.trim() || userInfo.email;
+
+    res.json({
+      success: true,
+      message: `User '${userName}' and all associated employer data deleted successfully`,
+      deletedFromEmployer: employerDeleteResult.affectedRows,
+      deletedFromUsers: userDeleteResult.affectedRows,
+      totalRecordsDeleted: employerDeleteResult.affectedRows + userDeleteResult.affectedRows
+    });
+
+  } catch (err) {
+    if (connection) await connection.rollback();
+    console.error('Error deleting user and employer data:', err);
+    
+    // Handle foreign key constraint errors
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED' || 
+        err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW') {
+      return res.status(409).json({ 
+        success: false, 
+        message: "Cannot delete user. User has related records in other tables.",
+        error: err.message 
+      });
+    }
+
+    res.status(500).json({ 
+      success: false, 
+      error: err.message,
+      message: "Failed to delete user and associated data"
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
 module.exports = router;
