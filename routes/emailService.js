@@ -49,7 +49,7 @@ const sendWelcomeEmail = async (to, firstName, lastName, role = 'employer') => {
 
         htmlContent = htmlContent.replace(
             /<a href="[^"]+" style="([\s\S]*?)">[\s\S]*?<\/a>/,
-            `<a href="http://69.62.81.122:85/alljobs" style="$1">Find Jobs</a>`
+            `<a href="https://gulfworker.net/alljobs" style="$1">Find Jobs</a>`
         );
     }
 
