@@ -1412,6 +1412,7 @@ router.get("/transactions", async (req, res) => {
 
 
 // ✅ DELETE: Delete user and employer data from both tables
+// ✅ DELETE: Delete only employer data (NOT user data)
 router.delete("/employer/user/:userId", async (req, res) => {
   let connection;
   try {
@@ -1427,13 +1428,7 @@ router.delete("/employer/user/:userId", async (req, res) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // 1. Get employer data to delete profile photo if exists
-    const [employerRecords] = await connection.execute(
-      `SELECT profile_photo FROM employer WHERE user_id = ?`,
-      [userId]
-    );
-
-    // 2. Get user data for logging/reference
+    // 1. First check if user exists
     const [userRecords] = await connection.execute(
       `SELECT email, first_name, last_name FROM users WHERE id = ?`,
       [userId]
@@ -1447,19 +1442,27 @@ router.delete("/employer/user/:userId", async (req, res) => {
       });
     }
 
-    // 3. Delete from employer table first
+    // 2. Get employer data to delete profile photo if exists
+    const [employerRecords] = await connection.execute(
+      `SELECT profile_photo FROM employer WHERE user_id = ?`,
+      [userId]
+    );
+
+    // 3. Delete from employer table ONLY
     const [employerDeleteResult] = await connection.execute(
       `DELETE FROM employer WHERE user_id = ?`,
       [userId]
     );
 
-    // 4. Delete from users table
-    const [userDeleteResult] = await connection.execute(
-      `DELETE FROM users WHERE id = ?`,
-      [userId]
-    );
+    if (employerDeleteResult.affectedRows === 0) {
+      await connection.rollback();
+      return res.status(404).json({ 
+        success: false, 
+        message: "No employer data found for this user"
+      });
+    }
 
-    // 5. Delete profile photo files if they exist
+    // 4. Delete profile photo files if they exist
     if (employerRecords.length > 0) {
       for (const record of employerRecords) {
         if (record.profile_photo) {
@@ -1483,22 +1486,22 @@ router.delete("/employer/user/:userId", async (req, res) => {
 
     res.json({
       success: true,
-      message: `User '${userName}' and all associated employer data deleted successfully`,
-      deletedFromEmployer: employerDeleteResult.affectedRows,
-      deletedFromUsers: userDeleteResult.affectedRows,
-      totalRecordsDeleted: employerDeleteResult.affectedRows + userDeleteResult.affectedRows
+      message: `Employer data for user '${userName}' deleted successfully`,
+      deletedEmployerRecords: employerDeleteResult.affectedRows,
+      userStillExists: true,
+      note: "User account remains active, only employer profile was deleted"
     });
 
   } catch (err) {
     if (connection) await connection.rollback();
-    console.error('Error deleting user and employer data:', err);
+    console.error('Error deleting employer data:', err);
     
     // Handle foreign key constraint errors
     if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED' || 
         err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW') {
       return res.status(409).json({ 
         success: false, 
-        message: "Cannot delete user. User has related records in other tables.",
+        message: "Cannot delete employer data. User has related records in other tables.",
         error: err.message 
       });
     }
@@ -1506,7 +1509,7 @@ router.delete("/employer/user/:userId", async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: err.message,
-      message: "Failed to delete user and associated data"
+      message: "Failed to delete employer data"
     });
   } finally {
     if (connection) connection.release();
