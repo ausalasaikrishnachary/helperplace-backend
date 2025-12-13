@@ -98,6 +98,7 @@ function convertToMySQLDateTime(dateValue) {
 // Function to prepare data for MySQL, handling dates, JSON, and boolean values
 // In your backend route file, update the prepareDataForMySQL function:
 
+// Updated prepareDataForMySQL function with proper job_starting_date handling
 function prepareDataForMySQL(data) {
     const preparedData = { ...data };
 
@@ -120,8 +121,24 @@ function prepareDataForMySQL(data) {
             // Store "Immediately" as a string
             preparedData.job_starting_date = 'Immediately';
         } else {
-            // Convert date string to MySQL format
-            preparedData.job_starting_date = convertToMySQLDateTime(preparedData.job_starting_date);
+            // Check if it's already a valid date string
+            const dateStr = preparedData.job_starting_date;
+            
+            // Handle different date formats
+            if (dateStr.includes('T')) {
+                // ISO format: "2024-01-15T00:00:00.000Z"
+                preparedData.job_starting_date = convertToMySQLDateTime(dateStr);
+            } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                // YYYY-MM-DD format
+                preparedData.job_starting_date = dateStr; // Store as is
+            } else if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+                // DD-MM-YYYY format - convert to YYYY-MM-DD
+                const [day, month, year] = dateStr.split('-');
+                preparedData.job_starting_date = `${year}-${month}-${day}`;
+            } else {
+                // Try to parse as date
+                preparedData.job_starting_date = convertToMySQLDateTime(dateStr);
+            }
         }
     }
 
@@ -189,26 +206,46 @@ function prepareDataForMySQL(data) {
     return preparedData;
 }
 
-// Update the convertToMySQLDateTime function to be more robust:
+// Updated convertToMySQLDateTime function
 function convertToMySQLDateTime(dateValue) {
-    if (!dateValue || dateValue === '' || dateValue === 'Immediately') {
+    if (!dateValue || dateValue === '' || dateValue === 'Immediately' || dateValue === 'null') {
         return null;
     }
 
     try {
         // If it's already in MySQL format, return as is
+        if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+            // It's already YYYY-MM-DD format
+            return dateValue;
+        }
+        
         if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateValue)) {
+            // It's already MySQL datetime format
             return dateValue;
         }
 
-        // If it's an ISO string or Date object, convert to MySQL format
-        const date = new Date(dateValue);
+        // Parse the date
+        let date;
+        
+        if (typeof dateValue === 'string' && dateValue.includes('T')) {
+            // ISO string
+            date = new Date(dateValue);
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+            // YYYY-MM-DD format
+            return dateValue; // Return as-is for date-only fields
+        } else {
+            // Try to parse as date
+            date = new Date(dateValue);
+        }
+
         if (isNaN(date.getTime())) {
             console.warn('Invalid date passed to convertToMySQLDateTime:', dateValue);
             return null;
         }
 
-        return date.toISOString().slice(0, 19).replace('T', ' ');
+        // Return only date part (YYYY-MM-DD) for job_starting_date
+        // If you need datetime, use: return date.toISOString().slice(0, 19).replace('T', ' ');
+        return date.toISOString().split('T')[0]; // Just the date part
     } catch (error) {
         console.error('Error converting date:', error);
         return null;
