@@ -148,22 +148,22 @@ const sendFreeTrialEndingReminder = async (to, firstName, endDate) => {
 };
 
 // 8️⃣ Subscription Renewal Confirmation
-// const sendSubscriptionRenewalConfirmation = async (to, firstName, planName, endDate) => {
-//     const formattedDate = new Date(endDate).toLocaleDateString();
-//     const mailOptions = {
-//         from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
-//         to,
-//         subject: 'Subscription Renewal Confirmation',
-//         html: `
-//       <p>Hi ${firstName},</p>
-//       <p>Your GulfWorker subscription (${planName}) has been successfully renewed!</p>
-//       <p>Your new subscription end date is ${formattedDate}.</p>
-//       <p>Thank you for continuing with us.</p>
-//       <p>Warm regards,<br/>Gulf Hepler Team</p>
-//     `
-//     };
-//     return transporter.sendMail(mailOptions);
-// };
+const sendSubscriptionRenewalConfirmation = async (to, firstName, planName, endDate) => {
+    const formattedDate = new Date(endDate).toLocaleDateString();
+    const mailOptions = {
+        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
+        to,
+        subject: 'Subscription Renewal Confirmation',
+        html: `
+      <p>Hi ${firstName},</p>
+      <p>Your GulfWorker subscription (${planName}) has been successfully renewed!</p>
+      <p>Your new subscription end date is ${formattedDate}.</p>
+      <p>Thank you for continuing with us.</p>
+      <p>Warm regards,<br/>Gulf Hepler Team</p>
+    `
+    };
+    return transporter.sendMail(mailOptions);
+};
 
 // 9️⃣ Plan Upgrade Suggestion (1 day before expiry)
 const sendPlanUpgradeSuggestion = async (to, firstName, currentPlan, endDate) => {
@@ -997,9 +997,9 @@ module.exports = {
     sendSubscriptionExpiredNotification,
     sendJobpostingexpiredNotification,
     sendFreeTrialEndingReminder,
-    // sendSubscriptionRenewalConfirmation,
+    sendSubscriptionRenewalConfirmation,
     sendPlanUpgradeSuggestion,
-    sendLowViewsReminder,
+    sendLowViewsReminder, 
     sendPaymentDueDateReminder,
     checkAndSendSubscriptionReminders,
     checkAndSendLowViewsReminders,
