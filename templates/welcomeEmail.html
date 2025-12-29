@@ -1,45 +1,81 @@
 <!DOCTYPE html>
 <html>
-  <body style="margin:0; padding:0; font-family: Arial, sans-serif; color:#333;">
-    <div style="background-color:#e6f9ec; padding:20px; text-align:center;">
-      <img src="https://gulfworker.net/api/templates/images/Logo1.png" alt="Gulf worker Logo" style="width:200px; height:auto;" />
-    </div>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Gulf Worker</title>
+  </head>
+  <body style="margin:0; padding:0; font-family: Arial, sans-serif; color:#333; background-color: #f5f5f5;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: white;">
+      <!-- Header with Logo -->
+      <div style="background-color:#e6f9ec; padding:20px; text-align:center;">
+        <img src="https://gulfworker.net/api/templates/images/GudnetNewLogo.png" alt="Gulf Worker Logo" style="width:200px; height:auto;" />
+      </div>
 
-    <div style="padding:30px 15px; text-align:center;">
-      <p>Hi <strong>{{name}}</strong>,</p>
+      <!-- Main Content -->
+      <div style="padding:30px 20px; text-align:center;">
+        <p style="font-size: 16px; margin-bottom: 25px;">
+          Hi <strong>{{name}}</strong>,
+        </p>
 
-      <h2 style="font-size:22px; font-weight:bold;">
-        Welcome to <span style="color:#28a745;">Gulf Worker!</span>
-      </h2>
+        <h2 style="font-size:22px; font-weight:bold; margin-top: 0; margin-bottom: 20px;">
+          Welcome to <span style="color:#28a745;">Gulf Worker!</span>
+        </h2>
 
-      <p style="max-width:600px; margin: 0 auto;">
-        Congrats, you are now a member of one of the largest Domestic Helper's community.
-        Browse our candidates, post a job offer and easily meet your future helper.
-      </p>
+        <p style="font-size:16px; line-height:1.6; max-width: 550px; margin: 0 auto 25px;">
+          Welcome to the Gulf Worker community! Start by updating your resume to stand out to employers. Browse job offers and connect with families and agencies looking for someone like you.
+        </p>
 
-      <a href="https://gulfworker.net/allcandidates" style="
-        margin: 20px auto;
-        padding: 15px 25px;
-        background-color: #28a745;
-        color: white;
-        text-decoration: none;
-        font-weight: bold;
-        display: inline-block;
-        border-radius: 5px;
-        font-size: 16px;">
-        Find Candidates
-      </a>
+        <!-- Wider "Find Jobs" Button -->
+        <a href="https://gulfworker.net/" style="
+          margin: 20px auto 30px;
+          padding: 16px 40px;
+          background-color: #28a745;
+          color: white;
+          text-decoration: none;
+          font-weight: bold;
+          display: inline-block;
+          border-radius: 5px;
+          font-size: 18px;
+          width: 80%;
+          max-width: 300px;
+          box-sizing: border-box;
+          text-align: center;">
+          Find Jobs
+        </a>
 
-      <p style="margin-top:30px;">
-        Questions? Send us a message — We're happy to <strong>help</strong>!<br>
-        — Gulf Hepler Team
-      </p>
-    </div>
+        
+          <p style="font-size:16px; margin-bottom: 25px;">
+            Questions? Send us a message — We're happy to <strong>help</strong>!
+          </p>
+          
+          <p style="font-size:16px; margin: 5px 0;">
+            — Gulf Worker Team
+          </p>
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;"></div>
+          <div style="margin-top: 10px; font-size: 15px;">
+            <p style="margin: 8px 0;">
+              <strong>Email:</strong> support@gulfworker.com
+            </p>
+            <p style="margin: 8px 0;">
+              <strong>WhatsApp:</strong> +974 50783800
+            </p>
+          </div>
+        </div>
+      </div>
 
-    <div style="font-size:12px; color:#fff; background:#222; padding:20px; text-align:center;">
-      This email was sent to {{email}}<br />
-      Manage all email preferences in email settings<br />
-      © 2024 Gulf Worker - All rights reserved.
+      <!-- Footer -->
+      <div style="font-size:12px; color:#fff; background:#222; padding:20px; text-align:center;">
+        <p style="margin: 5px 0;">
+          This email was sent to {{email}}
+        </p>
+        <p style="margin: 5px 0;">
+          Manage all email preferences in email settings
+        </p>
+        <p style="margin: 5px 0;">
+          © 2024 Gulf Worker - All rights reserved.
+        </p>
+      </div>
     </div>
   </body>
 </html>

@@ -15,14 +15,87 @@ function getNextUpgradePlan(currentPlan) {
 // 1️⃣ Thanks for joining email
 const sendThanksEmail = async (to, firstName) => {
     const mailOptions = {
-        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
+        from: `"Gulf Worker Team" <${ADMIN_EMAIL}>`,
         to,
         subject: 'Thanks for joining Gulf Worker!',
         html: `
-      <p>Hi ${firstName},</p>
-      <p>Thank you for registering with <strong>Gulf Worker</strong>. We're glad to have you onboard!</p>
-      <p>Warm regards,<br/>Gulf Hepler Team</p>
-    `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Gulf Worker</title>
+  </head>
+  <body style="margin:0; padding:0; font-family: Arial, sans-serif; color:#333; background-color: #f5f5f5;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: white;">
+      <!-- Header with Logo -->
+      <div style="background-color:#e6f9ec; padding:20px; text-align:center;">
+        <img src="https://gulfworker.net/api/templates/images/GudnetNewLogo.png" alt="Gulf Worker Logo" style="width:200px; height:auto;" />
+      </div>
+
+      <!-- Main Content -->
+      <div style="padding:30px 20px; text-align:center;">
+        <p style="font-size: 16px; margin-bottom: 25px;">
+          Hi <strong>${firstName}</strong>,
+        </p>
+
+        <h2 style="font-size:22px; font-weight:bold; margin-top: 0; margin-bottom: 20px;">
+          Welcome to GulfWorker!
+        </h2>
+
+        <p style="font-size:16px; line-height:1.6; max-width: 550px; margin: 0 auto 25px;">
+          Your registration was successful.<br>
+          Complete your profile now to start receiving job opportunities.
+        </p>
+
+        <!-- Complete Profile Button -->
+        <a href="https://gulfworker.net/" style="
+          margin: 20px auto 15px;
+          padding: 16px 40px;
+          background-color: #28a745;
+          color: white;
+          text-decoration: none;
+          font-weight: bold;
+          display: inline-block;
+          border-radius: 5px;
+          font-size: 18px;
+          width: 80%;
+          max-width: 300px;
+          box-sizing: border-box;
+          text-align: center;">
+          Complete Profile
+        </a>
+
+    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;"></div>
+          <div style="margin-top: 10px; font-size: 15px;">
+          <p style="margin: 8px 0;">
+              <strong>Website:</strong> www.gulfworker.net
+            </p>
+            <p style="margin: 8px 0;">
+              <strong>Email:</strong> support@gulfworker.com
+            </p>
+            <p style="margin: 8px 0;">
+              <strong>WhatsApp support:</strong> +974 50783800
+            </p>
+          </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="font-size:12px; color:#fff; background:#222; padding:20px; text-align:center;">
+        <p style="margin: 5px 0;">
+          This email was sent to ${to}
+        </p>
+        <p style="margin: 5px 0;">
+          Manage all email preferences in email settings
+        </p>
+        <p style="margin: 5px 0;">
+          © 2024 Gulf Worker - All rights reserved.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
+        `
     };
     return transporter.sendMail(mailOptions);
 };
@@ -65,21 +138,119 @@ const sendWelcomeEmail = async (to, firstName, lastName, role = 'employer') => {
 
 // 3️⃣ OTP Verification Email
 const sendOtpEmail = async (to, otp) => {
-    const mailOptions = {
-        from: `"Gulf Hepler Team" <${ADMIN_EMAIL}>`,
-        to,
-        subject: 'Your Verification Code',
-        html: `
-      <p>Hello,</p>
-      <p>Your verification code for GulfWorker is:</p>
-      <h2 style="margin: 20px 0; color: #2563eb; font-size: 28px;">${otp}</h2>
-      <p>This code will expire in 10 minutes.</p>
-      <p>If you didn't request this code, please ignore this email.</p>
-      <p>Best regards,<br/>Gulf Hepler Team</p>
-    `
-    };
-    return transporter.sendMail(mailOptions);
+  const mailOptions = {
+    from: `"Gulf Worker Team" <${ADMIN_EMAIL}>`,
+    to,
+    subject: "Your Verification Code - Gulf Worker",
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Verify Email</title>
+</head>
+
+<body style="margin:0; padding:0; background:#f2f4f8; font-family: Arial, Helvetica, sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+    <tr>
+      <td align="center">
+
+        <!-- Card -->
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 6px 18px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td align="center" style="padding:5px 5px 5px;">
+              <img src="https://gulfworker.net/api/templates/images/GudnetNewLogo.png"
+                   alt="Gulf Worker"
+                   style="width:220px; display:block;" />
+            </td>
+          </tr>
+
+          <!-- Secure verification strip -->
+          <tr>
+            <td style="background:#eaf6f0; text-align:center; padding:10px;">
+              <span style="font-size:14px; color:#4b6b5f; font-weight:600;">
+                Secure Verification
+              </span>
+            </td>
+          </tr>
+
+          <!-- Main content -->
+          <tr>
+            <td style="padding:35px 40px; text-align:center;">
+
+              <h2 style="margin:0 0 12px; font-size:22px; color:#0b3d2e;">
+                Verify Your Email Address
+              </h2>
+
+              <p style="margin:0 0 28px; font-size:15px; color:#555;">
+                Use the verification code below to complete your login.
+              </p>
+
+              <!-- OTP Box -->
+              <div style="border:1.5px solid #d6dde6; border-radius:6px; padding:18px; margin-bottom:22px;">
+                <div style="font-size:34px; font-weight:700; color:#0d5bd7; letter-spacing:6px;">
+                  ${otp}
+                </div>
+              </div>
+
+              <!-- Info lines -->
+              <p style="margin:10px 0; font-size:14px; color:#333;">
+                ⏰ <strong>This code will expire in 10 minutes.</strong>
+              </p>
+
+              <p style="margin:6px 0 20px; font-size:14px; color:#333;">
+                🔒 For your security, <strong>do not share</strong> this code with anyone.
+              </p>
+
+              <!-- Divider -->
+              <hr style="border:none; border-top:1px solid #eee; margin:30px 0;" />
+
+              <p style="font-size:14px; color:#666; margin:0 0 18px;">
+                If you did not request this code, please ignore this email.
+              </p>
+
+              <p style="margin:0; font-size:15px; color:#333;">
+                Best regards,
+              </p>
+
+              <p style="margin:4px 0 0; font-size:15px; font-weight:600; color:#0b6b4f;">
+                Gulf Worker Team
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f8f9fb; text-align:center; padding:18px;">
+              <p style="margin:4px 0; font-size:13px; color:#555;">
+                Need help? 
+                <a href="mailto:support@gulfworker.com" style="color:#0d5bd7; text-decoration:none;">
+                  support@gulfworker.com
+                </a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+        <!-- End Card -->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
+    `,
+  };
+
+  return transporter.sendMail(mailOptions);
 };
+
 
 // 4️⃣ Subscription Expiry Reminder (1 week before)
 const sendSubscriptionExpiryReminder = async (to, firstName, endDate) => {
@@ -999,7 +1170,7 @@ module.exports = {
     sendFreeTrialEndingReminder,
     sendSubscriptionRenewalConfirmation,
     sendPlanUpgradeSuggestion,
-    sendLowViewsReminder, 
+    sendLowViewsReminder,
     sendPaymentDueDateReminder,
     checkAndSendSubscriptionReminders,
     checkAndSendLowViewsReminders,
