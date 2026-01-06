@@ -222,6 +222,9 @@ router.post("/", async (req, res) => {
     language_preference,
     agency_uid,
     agency_mail,
+    country,
+    uae_emirate,
+    uae_city,
     otp,
   } = req.body;
 
@@ -238,27 +241,13 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ message: "This email already registered" });
     }
 
-    // let customer_id = null;
-
-    // ✅ Step 3: Create Razorpay customer only for employer role
-    // if (role?.toLowerCase() === "employer") {
-    //   const customerPayload = {
-    //     name: `${first_name || ""} ${last_name || ""}`.trim(),
-    //     email: email,
-    //     contact: mobile_number ? String(mobile_number) : undefined,
-    //   };
-
-    //   const razorpayCustomer = await razorpay.customers.create(customerPayload);
-    //   customer_id = razorpayCustomer.id;
-    // }
-
-    // ✅ Step 4: Insert user into MySQL (include customer_id if any)
+    // ✅ Step 4: Insert user into MySQL
     const query = `
       INSERT INTO users (
-        email, mobile_number, mobile_number_country_code,  password, first_name, last_name, 
+        email, mobile_number, mobile_number_country_code, password, first_name, last_name, 
         role, source, location, language_preference, agency_uid, 
-        agency_mail, is_verified
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        agency_mail, is_verified, country, uae_emirate, uae_city
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.query(query, [
@@ -274,7 +263,10 @@ router.post("/", async (req, res) => {
       language_preference,
       agency_uid,
       agency_mail,
-      1
+      1,  // is_verified value
+      country,
+      uae_emirate,
+      uae_city
     ]);
 
     // ✅ Step 5: Send onboarding email
@@ -297,6 +289,9 @@ router.post("/", async (req, res) => {
       language_preference,
       agency_uid,
       agency_mail,
+      country,
+      uae_emirate,
+      uae_city,
       is_verified: true,
     });
   } catch (err) {
@@ -313,7 +308,9 @@ router.put('/:id', async (req, res) => {
   try {
     const query = `
       UPDATE users SET email = ?, mobile_number = ?, mobile_number_country_code = ?,  password = ?, first_name = ?, last_name = ?,  
-      location = ?, language_preference = ?
+      location = ?, language_preference = ?  country = ?,
+    uae_emirate = ?,
+    uae_city = ?,
       WHERE id = ?
     `;
     await db.query(query, [
