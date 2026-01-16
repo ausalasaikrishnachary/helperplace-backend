@@ -47,8 +47,10 @@ const News = require('./routes/NewsRoutes');
 const trainingRoutes = require('./routes/trainingRoutes');
 const shortListRoutes = require('./routes/shortListRoutes');
 const webhookRoutes = require("./routes/webhook");
+const viewedProfileRoutes = require("./routes/viewedProfile");
 
 app.use('/', userRoutes);
+app.use('/', viewedProfileRoutes);
 app.use('/api', jobSeekerRoutes);
 app.use('/api', agencyRoutes);
 app.use("/api/", employerRoutes);
