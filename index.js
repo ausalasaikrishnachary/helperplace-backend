@@ -48,6 +48,7 @@ const trainingRoutes = require('./routes/trainingRoutes');
 const shortListRoutes = require('./routes/shortListRoutes');
 const webhookRoutes = require("./routes/webhook");
 const viewedProfileRoutes = require("./routes/viewedProfile");
+const profilevisitsRoutes = require("./routes/profilevisits");
 
 app.use('/', userRoutes);
 app.use('/', viewedProfileRoutes);
@@ -69,6 +70,8 @@ app.use('/api', paynowroutes);
 app.use("/", trainingRoutes);
 app.use("/", shortListRoutes);
 app.use("/", webhookRoutes);
+
+app.use('/', profilevisitsRoutes);
 
 require('./routes/inactivityChecker');
 
