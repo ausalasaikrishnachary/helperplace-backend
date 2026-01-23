@@ -302,26 +302,51 @@ router.post("/", async (req, res) => {
 
 
 // Update user
+// Update user
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { email, mobile_number, mobile_number_country_code, password, first_name, last_name, location, language_preference } = req.body;
+  const {
+    email,
+    mobile_number,
+    password,
+    first_name,
+    last_name,
+    location,
+    language_preference
+  } = req.body;
+
   try {
     const query = `
-      UPDATE users SET email = ?, mobile_number = ?, mobile_number_country_code = ?,  password = ?, first_name = ?, last_name = ?,  
-      location = ?, language_preference = ?  country = ?,
-    uae_emirate = ?,
-    uae_city = ?,
+      UPDATE users 
+      SET 
+        email = ?, 
+        mobile_number = ?, 
+        password = ?, 
+        first_name = ?, 
+        last_name = ?, 
+        location = ?, 
+        language_preference = ?
       WHERE id = ?
     `;
+
     await db.query(query, [
-      email, mobile_number, mobile_number_country_code, password, first_name, last_name,
-      location, language_preference, id
+      email,
+      mobile_number,
+      password,
+      first_name,
+      last_name,
+      location,
+      language_preference,
+      id
     ]);
+
     res.json({ message: 'User updated successfully' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Delete user
 router.delete('/:id', async (req, res) => {
