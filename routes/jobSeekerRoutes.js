@@ -256,10 +256,16 @@ router.post(
           'dtr_specialty_qualifications',
           'dtr_super_spl_qualifications'
         ];
-        
+
         doctorJsonFields.forEach(field => {
-          if (doctorProfileData[field] && typeof doctorProfileData[field] !== 'string') {
-            doctorProfileData[field] = JSON.stringify(doctorProfileData[field]);
+          if (doctorProfileData[field] !== undefined) {
+            if (Array.isArray(doctorProfileData[field]) || typeof doctorProfileData[field] === 'object') {
+              doctorProfileData[field] = JSON.stringify(doctorProfileData[field]);
+            }
+            // Ensure empty arrays/objects become empty JSON arrays
+            if (doctorProfileData[field] === null || doctorProfileData[field] === undefined) {
+              doctorProfileData[field] = '[]';
+            }
           }
         });
 
@@ -269,19 +275,42 @@ router.post(
         );
 
         if (doctorProfileRows.length === 0) {
-          await connection.query('INSERT INTO doctor_profile SET ?', [doctorProfileData]);
+          // For INSERT, handle undefined/null values
+          const insertData = { ...doctorProfileData };
+          Object.keys(insertData).forEach(key => {
+            if (insertData[key] === undefined || insertData[key] === null) {
+              insertData[key] = '';
+            }
+          });
+          await connection.query('INSERT INTO doctor_profile SET ?', [insertData]);
         } else {
-          const updateFields = Object.keys(doctorProfileData)
-            .filter(key => key !== 'dtr_user_id')
-            .map(key => `${key} = ?`)
-            .join(', ');
+          // For UPDATE, filter out undefined/null values or convert them to empty string
+          const updateFields = [];
+          const updateValues = [];
 
-          const updateValues = Object.keys(doctorProfileData)
-            .filter(key => key !== 'dtr_user_id')
-            .map(key => doctorProfileData[key]);
+          Object.keys(doctorProfileData).forEach(key => {
+            if (key !== 'dtr_user_id') {
+              let value = doctorProfileData[key];
 
-          const updateSql = `UPDATE doctor_profile SET ${updateFields} WHERE dtr_user_id = ?`;
-          await connection.query(updateSql, [...updateValues, userId]);
+              // Handle undefined/null values
+              if (value === undefined || value === null) {
+                value = '';
+              }
+
+              // Handle empty arrays for JSON fields
+              if (Array.isArray(value) && value.length === 0) {
+                value = '[]';
+              }
+
+              updateFields.push(`${key} = ?`);
+              updateValues.push(value);
+            }
+          });
+
+          if (updateFields.length > 0) {
+            const updateSql = `UPDATE doctor_profile SET ${updateFields.join(', ')} WHERE dtr_user_id = ?`;
+            await connection.query(updateSql, [...updateValues, userId]);
+          }
         }
       }
 
@@ -310,7 +339,7 @@ router.get('/job-seeker', async (req, res) => {
     const parsedResults = results.map(row => {
       jsonFields.forEach(field => {
         if (row[field]) {
-          try { row[field] = JSON.parse(row[field]); } catch (_) {}
+          try { row[field] = JSON.parse(row[field]); } catch (_) { }
         }
       });
       return row;
@@ -332,7 +361,7 @@ router.get('/job-seeker/:id', async (req, res) => {
 
     const row = results[0];
     jsonFields.forEach(field => {
-      if (row[field]) { try { row[field] = JSON.parse(row[field]); } catch (_) {} }
+      if (row[field]) { try { row[field] = JSON.parse(row[field]); } catch (_) { } }
     });
 
     res.json(row);
@@ -350,7 +379,7 @@ router.get('/job-seeker/doctor/:id', async (req, res) => {
 
     const row = results[0];
     jsonFields.forEach(field => {
-      if (row[field]) { try { row[field] = JSON.parse(row[field]); } catch (_) {} }
+      if (row[field]) { try { row[field] = JSON.parse(row[field]); } catch (_) { } }
     });
 
     res.json(row);
@@ -633,7 +662,7 @@ router.get('/job-seeker/combine/all', async (req, res) => {
     jobSeekers.forEach(seeker => {
       jsonFields.forEach(field => {
         if (seeker[field]) {
-          try { seeker[field] = JSON.parse(seeker[field]); } catch (_) {}
+          try { seeker[field] = JSON.parse(seeker[field]); } catch (_) { }
         }
       });
     });
@@ -649,13 +678,15 @@ router.get('/job-seeker/combine/all', async (req, res) => {
       'dtr_before_worked_country',
       'dtr_certificate_options',
       'dtr_specialty_qualifications',
-      'dtr_super_spl_qualifications'
+      'dtr_super_spl_qualifications',
+      'dtr_fellowship_qualifications',
+      'dtr_other_language_qualifications',
+      'dtr_cultural_qualifications'
     ];
-
     doctorProfiles.forEach(profile => {
       doctorJsonFields.forEach(field => {
         if (profile[field]) {
-          try { profile[field] = JSON.parse(profile[field]); } catch (_) {}
+          try { profile[field] = JSON.parse(profile[field]); } catch (_) { }
         }
       });
     });
@@ -671,10 +702,10 @@ router.get('/job-seeker/combine/all', async (req, res) => {
     // Merge data: for each job seeker, add corresponding doctor profile data
     const mergedData = jobSeekers.map(seeker => {
       const doctorProfile = doctorProfileMap[seeker.user_id] || {};
-      
+
       // Remove dtr_user_id from doctor profile to avoid duplication with user_id
       const { dtr_user_id, ...doctorData } = doctorProfile;
-      
+
       return {
         ...seeker,
         ...doctorData
@@ -689,9 +720,9 @@ router.get('/job-seeker/combine/all', async (req, res) => {
 
   } catch (err) {
     console.error('Error in merged-all job-seeker GET:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: err.message 
+      error: err.message
     });
   }
 });
@@ -701,7 +732,7 @@ router.get('/job-seeker/combine/all', async (req, res) => {
 router.get('/job-seeker/merged/:id', async (req, res) => {
   try {
     const userId = req.params.id;
-    
+
     const [jobSeekerResults, doctorProfileResults] = await Promise.all([
       db.query('SELECT * FROM job_seekers WHERE user_id = ?', [userId]),
       db.query('SELECT * FROM doctor_profile WHERE dtr_user_id = ?', [userId])
@@ -716,14 +747,14 @@ router.get('/job-seeker/merged/:id', async (req, res) => {
     // Parse JSON fields for job_seekers data
     jsonFields.forEach(field => {
       if (mergedData[field]) {
-        try { mergedData[field] = JSON.parse(mergedData[field]); } catch (_) {}
+        try { mergedData[field] = JSON.parse(mergedData[field]); } catch (_) { }
       }
     });
 
     // Add doctor profile data if exists
     if (doctorProfileResults[0].length > 0) {
       const doctorProfileData = doctorProfileResults[0][0];
-      
+
       const doctorJsonFields = [
         'dtr_preferred_country',
         'dtr_language_skilled',
@@ -734,13 +765,15 @@ router.get('/job-seeker/merged/:id', async (req, res) => {
         'dtr_before_worked_country',
         'dtr_certificate_options',
         'dtr_specialty_qualifications',
-        'dtr_super_spl_qualifications'
+        'dtr_super_spl_qualifications',
+        'dtr_fellowship_qualifications',
+        'dtr_other_language_qualifications',
+        'dtr_cultural_qualifications'
       ];
-
       // Parse JSON fields for doctor data
       doctorJsonFields.forEach(field => {
         if (doctorProfileData[field]) {
-          try { doctorProfileData[field] = JSON.parse(doctorProfileData[field]); } catch (_) {}
+          try { doctorProfileData[field] = JSON.parse(doctorProfileData[field]); } catch (_) { }
         }
       });
 
@@ -772,9 +805,9 @@ router.delete('/user/:id', async (req, res) => {
 
     if (userExists.length === 0) {
       await connection.rollback();
-      return res.status(404).json({ 
-        success: false, 
-        message: 'User not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
       });
     }
 
@@ -798,7 +831,7 @@ router.delete('/user/:id', async (req, res) => {
 
     await connection.commit();
 
-    res.json({ 
+    res.json({
       success: true,
       message: 'User and related data deleted successfully',
       deletedFromJobSeekers: jobSeekerResult.affectedRows > 0,
@@ -808,19 +841,19 @@ router.delete('/user/:id', async (req, res) => {
   } catch (err) {
     if (connection) await connection.rollback();
     console.error('Error deleting user:', err);
-    
+
     // Handle foreign key constraint errors
-    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED' || 
-        err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW') {
-      return res.status(409).json({ 
-        success: false, 
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED' ||
+      err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW') {
+      return res.status(409).json({
+        success: false,
         message: 'Cannot delete user. User has related records in other tables.',
-        error: err.message 
+        error: err.message
       });
     }
 
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: err.message,
       message: 'Failed to delete user'
     });
