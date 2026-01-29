@@ -74,6 +74,7 @@ router.post('/send-reg-otp', async (req, res) => {
 });
 
 // Verify OTP endpoint
+// Verify OTP endpoint
 router.post('/verify-otp', async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -85,26 +86,31 @@ router.post('/verify-otp', async (req, res) => {
     const storedData = otpStore.get(email);
 
     if (!storedData) {
-      return res.status(400).json({ error: 'OTP not found or expired' });
+      return res.status(400).json({ error: 'OTP not found or expired. Please request a new OTP.' });
     }
 
     // Check if OTP is expired (10 minutes)
     if (Date.now() - storedData.createdAt > 10 * 60 * 1000) {
       otpStore.delete(email);
-      return res.status(400).json({ error: 'OTP has expired' });
+      return res.status(400).json({ error: 'OTP has expired. Please request a new OTP.' });
     }
 
     if (storedData.otp !== otp) {
-      return res.status(400).json({ error: 'Invalid OTP' });
+      return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
     }
 
-    // Mark OTP as verified
+    // Mark OTP as verified and add verification timestamp
     storedData.verified = true;
+    storedData.verifiedAt = Date.now();
     otpStore.set(email, storedData);
+
+    console.log(`OTP verified for ${email}. Stored data:`, storedData);
+    console.log('Current OTP store:', Array.from(otpStore.entries()));
 
     res.status(200).json({
       success: true,
-      message: 'OTP verified successfully'
+      message: 'OTP verified successfully',
+      verified: true
     });
 
   } catch (error) {
@@ -113,15 +119,28 @@ router.post('/verify-otp', async (req, res) => {
   }
 });
 
+// In your backend routes file (agency.js or wherever your routes are)
 router.post('/check-otp-status', (req, res) => {
   const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+  
   const storedData = otpStore.get(email);
-
+  
+  console.log('Checking OTP status for:', email);
+  console.log('OTP Store size:', otpStore.size);
+  console.log('All OTP entries:', Array.from(otpStore.entries()));
+  
   res.json({
     email,
     storedData,
-    otpStoreSize: otpStore.size,
-    allEntries: Array.from(otpStore.entries())
+    hasOTP: !!storedData,
+    isVerified: storedData?.verified || false,
+    createdAt: storedData?.createdAt || null,
+    verifiedAt: storedData?.verifiedAt || null,
+    otpStoreSize: otpStore.size
   });
 });
 
@@ -310,9 +329,10 @@ router.post('/check-otp-status', (req, res) => {
 // });
 
 // Agency registration endpoint with file uploads and country codes
+// Agency registration endpoint with file uploads and country codes
+// Agency registration endpoint with file uploads and country codes
 router.post('/agency', (req, res) => {
   upload(req, res, async function (err) {
-
     if (err) {
       console.error('Upload error:', err);
       return res.status(400).json({
@@ -323,7 +343,6 @@ router.post('/agency', (req, res) => {
     }
 
     try {
-
       const {
         agency_name, city, province, country, full_address,
         whatsapp_number_1, whatsapp_number_1_country_code,
@@ -337,10 +356,6 @@ router.post('/agency', (req, res) => {
         manager_mobile_country_code, manager_email, password, role
       } = req.body;
 
-      if (!agency_name || !email || !password) {
-        return res.status(400).json({ error: 'Required fields are missing' });
-      }
-
       // Check if email exists
       const [existingAgency] = await db.query(
         'SELECT id FROM agency_user WHERE email = ?',
@@ -349,6 +364,14 @@ router.post('/agency', (req, res) => {
 
       if (existingAgency.length > 0) {
         return res.status(400).json({ error: 'This email already registered' });
+      }
+
+      // Check OTP verification
+      const storedOTP = otpStore.get(email);
+      if (!storedOTP || !storedOTP.verified) {
+        return res.status(400).json({ 
+          error: 'Email verification required. Please verify your email with OTP first.' 
+        });
       }
 
       // ---------- FILE PATHS ----------
@@ -361,7 +384,7 @@ router.post('/agency', (req, res) => {
         manager_photo: files.manager_photo?.[0] ? path.join('uploads', path.basename(files.manager_photo[0].path)) : null
       };
 
-      // ---------- STEP 2: INSERT IN DB WITH COUNTRY CODES ----------
+      // ---------- INSERT INTO DATABASE ----------
       const query = `
         INSERT INTO agency_user (
           agency_name, city, province, country, full_address,
@@ -380,33 +403,33 @@ router.post('/agency', (req, res) => {
       `;
 
       const [result] = await db.query(query, [
-        agency_name,
-        city,
-        province,
-        country,
-        full_address,
-        whatsapp_number_1,
-        whatsapp_number_1_country_code, // No default - use what user selected
-        whatsapp_number_2 || '',
-        whatsapp_number_2_country_code, // No default - use what user selected
-        whatsapp_number_3 || '',
-        whatsapp_number_3_country_code, // No default - use what user selected
-        whatsapp_number_4 || '',
-        whatsapp_number_4_country_code, // No default - use what user selected
-        official_phone,
-        official_phone_country_code, // No default - use what user selected
+        agency_name || null,
+        city || null,
+        province || null,
+        country || null,
+        full_address || null,
+        whatsapp_number_1 || null,
+        whatsapp_number_1_country_code || '+971',
+        whatsapp_number_2 || null,
+        whatsapp_number_2_country_code || null,
+        whatsapp_number_3 || null,
+        whatsapp_number_3_country_code || null,
+        whatsapp_number_4 || null,
+        whatsapp_number_4_country_code || null,
+        official_phone || null,
+        official_phone_country_code || '+971',
         email,
-        website_url || '',
-        owner_name,
-        owner_nationality,
-        owner_mobile,
-        owner_mobile_country_code, // No default - use what user selected
-        owner_email,
-        manager_name,
-        manager_nationality,
-        manager_mobile,
-        manager_mobile_country_code, // No default - use what user selected
-        manager_email,
+        website_url || null,
+        owner_name || null,
+        owner_nationality || null,
+        owner_mobile || null,
+        owner_mobile_country_code || '+971',
+        owner_email || null,
+        manager_name || null,
+        manager_nationality || null,
+        manager_mobile || null,
+        manager_mobile_country_code || '+971',
+        manager_email || null,
         password,
         role || 'agency_admin',
         1, // is_verified
@@ -416,6 +439,9 @@ router.post('/agency', (req, res) => {
         filePaths.owner_photo,
         filePaths.manager_photo
       ]);
+
+      // Clear OTP after successful registration
+      otpStore.delete(email);
 
       res.status(201).json({
         id: result.insertId,
