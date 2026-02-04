@@ -1,10 +1,10 @@
 const mysql = require("mysql2/promise");
 
-
+// Prod Credentials
 const db = mysql.createPool({
   host: "localhost",
-  user: "root",
-  password: "",
+  user: "gudnet_app",
+  password: "StrongPass@123",
   database: "Gudnet",
   port: 3306
   
