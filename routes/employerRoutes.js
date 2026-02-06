@@ -117,9 +117,9 @@ function prepareDataForMySQL(data) {
 
     // Special handling for job_starting_date
     if (preparedData.job_starting_date !== undefined && preparedData.job_starting_date !== null) {
-        if (preparedData.job_starting_date === 'Immediately') {
-            // Store "Immediately" as a string
-            preparedData.job_starting_date = 'Immediately';
+        if (preparedData.job_starting_date === 'Immediate') {
+            // Store "Immediate" as a string
+            preparedData.job_starting_date = 'Immediate';
         } else {
             // Check if it's already a valid date string
             const dateStr = preparedData.job_starting_date;
@@ -208,7 +208,7 @@ function prepareDataForMySQL(data) {
 
 // Updated convertToMySQLDateTime function
 function convertToMySQLDateTime(dateValue) {
-    if (!dateValue || dateValue === '' || dateValue === 'Immediately' || dateValue === 'null') {
+    if (!dateValue || dateValue === '' || dateValue === 'Immediate' || dateValue === 'null') {
         return null;
     }
 

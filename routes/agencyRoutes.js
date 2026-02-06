@@ -32,7 +32,7 @@ const upload = multer({
   { name: 'business_card', maxCount: 1 },
   { name: 'license_copy', maxCount: 1 },
   { name: 'owner_photo', maxCount: 1 },
-  { name: 'manager_photo', maxCount: 1 }
+  { name: 'office_building_photo', maxCount: 1 }
 ]);
 
 
@@ -145,7 +145,7 @@ router.post('/check-otp-status', (req, res) => {
 //         business_card: files.business_card?.[0] ? path.join('uploads', path.basename(files.business_card[0].path)) : null,
 //         license_copy: files.license_copy?.[0] ? path.join('uploads', path.basename(files.license_copy[0].path)) : null,
 //         owner_photo: files.owner_photo?.[0] ? path.join('uploads', path.basename(files.owner_photo[0].path)) : null,
-//         manager_photo: files.manager_photo?.[0] ? path.join('uploads', path.basename(files.manager_photo[0].path)) : null
+//         office_building_photo: files.office_building_photo?.[0] ? path.join('uploads', path.basename(files.office_building_photo[0].path)) : null
 //       };
 
 //       const agencyData = {
@@ -251,7 +251,7 @@ router.post('/check-otp-status', (req, res) => {
 //         business_card: files.business_card?.[0] ? path.join('uploads', path.basename(files.business_card[0].path)) : null,
 //         license_copy: files.license_copy?.[0] ? path.join('uploads', path.basename(files.license_copy[0].path)) : null,
 //         owner_photo: files.owner_photo?.[0] ? path.join('uploads', path.basename(files.owner_photo[0].path)) : null,
-//         manager_photo: files.manager_photo?.[0] ? path.join('uploads', path.basename(files.manager_photo[0].path)) : null
+//         office_building_photo: files.office_building_photo?.[0] ? path.join('uploads', path.basename(files.office_building_photo[0].path)) : null
 //       };
 
 //       // ---------- STEP 2: INSERT IN DB WITH customer_id ----------
@@ -262,7 +262,7 @@ router.post('/check-otp-status', (req, res) => {
 //           official_phone, email, website_url, owner_name, owner_nationality,
 //           owner_mobile, owner_email, manager_name, manager_nationality,
 //           manager_mobile, manager_email, password, role, is_verified,
-//           company_logo, business_card, license_copy, owner_photo, manager_photo,
+//           company_logo, business_card, license_copy, owner_photo, office_building_photo,
 //           razorpay_customer_id, created_at, updated_at
 //         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
 //       `;
@@ -274,7 +274,7 @@ router.post('/check-otp-status', (req, res) => {
 //         owner_mobile, owner_email, manager_name, manager_nationality,
 //         manager_mobile, manager_email, password, role || 'agency_admin', 1,
 //         filePaths.company_logo, filePaths.business_card, filePaths.license_copy,
-//         filePaths.owner_photo, filePaths.manager_photo,
+//         filePaths.owner_photo, filePaths.office_building_photo,
 //         razorpay_customer_id // ⭐ STORE RAZORPAY CUSTOMER ID
 //       ]);
 
@@ -358,7 +358,7 @@ router.post('/agency', (req, res) => {
         business_card: files.business_card?.[0] ? path.join('uploads', path.basename(files.business_card[0].path)) : null,
         license_copy: files.license_copy?.[0] ? path.join('uploads', path.basename(files.license_copy[0].path)) : null,
         owner_photo: files.owner_photo?.[0] ? path.join('uploads', path.basename(files.owner_photo[0].path)) : null,
-        manager_photo: files.manager_photo?.[0] ? path.join('uploads', path.basename(files.manager_photo[0].path)) : null
+        office_building_photo: files.office_building_photo?.[0] ? path.join('uploads', path.basename(files.office_building_photo[0].path)) : null
       };
 
       // ---------- STEP 2: INSERT IN DB WITH COUNTRY CODES ----------
@@ -374,7 +374,7 @@ router.post('/agency', (req, res) => {
           owner_mobile, owner_mobile_country_code, owner_email,
           manager_name, manager_nationality, manager_mobile,
           manager_mobile_country_code, manager_email, password, role, is_verified,
-          company_logo, business_card, license_copy, owner_photo, manager_photo,
+          company_logo, business_card, license_copy, owner_photo, office_building_photo,
           created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `;
@@ -409,12 +409,12 @@ router.post('/agency', (req, res) => {
         manager_email,
         password,
         role || 'agency_admin',
-        1, // is_verified
+        0, // is_verified
         filePaths.company_logo,
         filePaths.business_card,
         filePaths.license_copy,
         filePaths.owner_photo,
-        filePaths.manager_photo
+        filePaths.office_building_photo
       ]);
 
       res.status(201).json({
@@ -425,7 +425,7 @@ router.post('/agency', (req, res) => {
           agency_name,
           email,
           role: 'agency_admin',
-          is_verified: true
+          is_verified: false
         }
       });
 

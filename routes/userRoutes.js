@@ -212,6 +212,7 @@ router.post("/", async (req, res) => {
   const {
     email,
     mobile_number,
+    whatsapp_number,
     mobile_number_country_code,
     password,
     first_name,
@@ -244,15 +245,16 @@ router.post("/", async (req, res) => {
     // ✅ Step 4: Insert user into MySQL
     const query = `
       INSERT INTO users (
-        email, mobile_number, mobile_number_country_code, password, first_name, last_name, 
+        email, mobile_number, whatsapp_number, mobile_number_country_code, password, first_name, last_name, 
         role, source, location, language_preference, agency_uid, 
         agency_mail, is_verified, country, uae_emirate, uae_city
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.query(query, [
       email,
       mobile_number,
+      whatsapp_number,
       mobile_number_country_code,
       password,
       first_name,
@@ -281,6 +283,7 @@ router.post("/", async (req, res) => {
       id: result.insertId,
       email,
       mobile_number,
+      whatsapp_number,
       first_name,
       last_name,
       role,
@@ -308,6 +311,7 @@ router.put('/:id', async (req, res) => {
   const {
     email,
     mobile_number,
+    whatsapp_number,
     password,
     first_name,
     last_name,
@@ -321,6 +325,7 @@ router.put('/:id', async (req, res) => {
       SET 
         email = ?, 
         mobile_number = ?, 
+        whatsapp_number = ?,
         password = ?, 
         first_name = ?, 
         last_name = ?, 
@@ -332,6 +337,7 @@ router.put('/:id', async (req, res) => {
     await db.query(query, [
       email,
       mobile_number,
+      whatsapp_number,
       password,
       first_name,
       last_name,
@@ -390,6 +396,7 @@ router.post('/login', async (req, res) => {
           customer_id: user.customer_id,
           email: user.email,
           mobile_number: user.mobile_number,
+          whatsapp_number: user.whatsapp_number,
           first_name: user.first_name,
           last_name: user.last_name,
           role: user.role,
@@ -425,6 +432,7 @@ router.post('/login', async (req, res) => {
           customer_id: agencyUser.razorpay_customer_id,
           email: agencyUser.email,
           mobile_number: agencyUser.mobile_number,
+          whatsapp_number: agencyUser.whatsapp_number,
           first_name: agencyUser.first_name,
           last_name: agencyUser.last_name,
           role: agencyUser.role,
@@ -509,6 +517,7 @@ router.post('/google-auth', async (req, res) => {
           id: user.id,
           email: user.email,
           mobile_number: user.mobile_number,
+          whatsapp_number: user.whatsapp_number,
           first_name: user.first_name,
           last_name: user.last_name,
           role: user.role,
@@ -532,6 +541,7 @@ router.post('/google-auth', async (req, res) => {
           id: agencyUser.id,
           email: agencyUser.email,
           mobile_number: agencyUser.mobile_number,
+          whatsapp_number: agencyUser.whatsapp_number,
           first_name: agencyUser.first_name,
           last_name: agencyUser.last_name,
           role: agencyUser.role,
@@ -665,6 +675,123 @@ router.get('/payment-reminders/send', async (req, res) => {
     res.status(500).json({
       success: false,
       error: err.message || 'Failed to process payment reminders'
+    });
+  }
+});
+
+// Create a new user by agency (without OTP verification)
+router.post("/agency-user-register", async (req, res) => {
+  const {
+    email,
+    mobile_number,
+    whatsapp_number,
+    mobile_number_country_code,
+    password,
+    first_name,
+    last_name,
+    role,
+    source,
+    location,
+    language_preference,
+    agency_uid,
+    agency_email
+  } = req.body;
+
+  try {
+    // ✅ Step 1: Check if user already exists
+    const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+    if (existingUser.length > 0) {
+      return res.status(400).json({ message: "This email is already registered" });
+    }
+
+    // ✅ Step 2: Validate agency_uid if provided
+    if (agency_uid) {
+      const [agencyExists] = await db.query("SELECT id FROM agency_user WHERE id = ?", [agency_uid]);
+      if (agencyExists.length === 0) {
+        return res.status(400).json({ message: "Invalid agency user ID" });
+      }
+    }
+
+    // ✅ Step 3: Insert user into MySQL without OTP verification
+    const query = `
+      INSERT INTO users (
+        email, 
+        mobile_number, 
+        whatsapp_number, 
+        mobile_number_country_code, 
+        password, 
+        first_name, 
+        last_name, 
+        role, 
+        source, 
+        location, 
+        language_preference, 
+        agency_uid, 
+        agency_mail, 
+        is_verified,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    `;
+
+    const [result] = await db.query(query, [
+      email,
+      mobile_number || null,
+      whatsapp_number || null,
+      mobile_number_country_code || "+91",
+      password || "Jobseeker@123", // Default password if not provided
+      first_name,
+      last_name || first_name, // Use first name as last name if not provided
+      role || "job seeker",
+      source || "agency",
+      location || null,
+      language_preference || "en",
+      agency_uid || null,
+      agency_email || null,
+      1  // is_verified set to true for agency registrations
+    ]);
+
+    // ✅ Step 4: Send onboarding email (optional)
+    if (email && first_name) {
+      try {
+        await sendOnboardingEmails(email, first_name, last_name || first_name, role || "job seeker");
+      } catch (emailError) {
+        console.warn("Failed to send onboarding email:", emailError);
+        // Continue even if email fails
+      }
+    }
+
+    // ✅ Step 5: Send response
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully by agency",
+      data: {
+        id: result.insertId,
+        email,
+        mobile_number: mobile_number || null,
+        whatsapp_number: whatsapp_number || null,
+        first_name,
+        last_name: last_name || first_name,
+        role: role || "job seeker",
+        source: source || "agency",
+        agency_uid: agency_uid || null,
+        agency_email: agency_email || null,
+        is_verified: true
+      }
+    });
+  } catch (err) {
+    console.error("Error in agency registration:", err);
+    
+    // Handle duplicate email error
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ 
+        success: false, 
+        message: "This email is already registered" 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      error: "Internal server error" 
     });
   }
 });
