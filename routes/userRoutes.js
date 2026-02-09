@@ -208,11 +208,117 @@ router.post('/verify-otp', async (req, res) => {
 //   }
 // });
 
+// router.post("/", async (req, res) => {
+//   const {
+//     email,
+//     mobile_number,
+//     whatsapp_number,
+//     mobile_number_country_code,
+//     password,
+//     first_name,
+//     last_name,
+//     role,
+//     source,
+//     location,
+//     language_preference,
+//     agency_uid,
+//     agency_mail,
+//     country,
+//     uae_emirate,
+//     uae_city,
+//     nationality,
+//     job_position,
+//     otp,
+//   } = req.body;
+
+//   try {
+//     // ✅ Step 1: Verify OTP
+//     const storedOtpData = otpStore.get(email);
+//     if (!storedOtpData || !storedOtpData.verified) {
+//       return res.status(400).json({ message: "Email not verified with OTP" });
+//     }
+
+//     // ✅ Step 2: Check if user already exists
+//     const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+//     if (existingUser.length > 0) {
+//       return res.status(400).json({ message: "This email already registered" });
+//     }
+
+//     // ✅ Step 4: Insert user into MySQL
+//     const query = `
+//       INSERT INTO users (
+//         email, mobile_number, whatsapp_number, mobile_number_country_code, password, first_name, last_name, 
+//         role, source, location, language_preference, agency_uid, 
+//         agency_mail, is_verified, country, uae_emirate, uae_city, nationality, job_position,
+//       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+//     `;
+
+//     const [result] = await db.query(query, [
+//       email,
+//       mobile_number,
+//       whatsapp_number,
+//       mobile_number_country_code,
+//       password,
+//       first_name,
+//       last_name,
+//       role,
+//       source,
+//       location,
+//       language_preference,
+//       agency_uid,
+//       agency_mail,
+//       1,  // is_verified value
+//       country,
+//       uae_emirate,
+//       uae_city,
+//       nationality,
+//       job_position,
+//     ]);
+
+//     // ✅ Step 5: Send onboarding email
+//     await sendOnboardingEmails(email, first_name, last_name, role);
+
+//     // ✅ Step 6: Clear OTP after success
+//     otpStore.delete(email);
+
+//     // ✅ Step 7: Send response
+//     res.status(201).json({
+//       message: "User registered successfully",
+//       id: result.insertId,
+//       email,
+//       mobile_number,
+//       whatsapp_number,
+//       first_name,
+//       last_name,
+//       role,
+//       source,
+//       location,
+//       language_preference,
+//       agency_uid,
+//       agency_mail,
+//       country,
+//       uae_emirate,
+//       uae_city,
+//       nationality,
+//       job_position,
+//       is_verified: true,
+//     });
+//   } catch (err) {
+//     console.error("Error:", err);
+//     res.status(500).json({ error: err.error?.description || err.message });
+//   }
+// });
+
+
+// Update user
+// Update user
+
 router.post("/", async (req, res) => {
   const {
     email,
     mobile_number,
     whatsapp_number,
+    whatsapp_country_code,
     mobile_number_country_code,
     password,
     first_name,
@@ -226,6 +332,9 @@ router.post("/", async (req, res) => {
     country,
     uae_emirate,
     uae_city,
+    nationality,
+    job_position,
+    current_country, // Add this
     otp,
   } = req.body;
 
@@ -245,30 +354,35 @@ router.post("/", async (req, res) => {
     // ✅ Step 4: Insert user into MySQL
     const query = `
       INSERT INTO users (
-        email, mobile_number, whatsapp_number, mobile_number_country_code, password, first_name, last_name, 
-        role, source, location, language_preference, agency_uid, 
-        agency_mail, is_verified, country, uae_emirate, uae_city
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        email, mobile_number, whatsapp_number, mobile_number_country_code, whatsapp_country_code,
+        password, first_name, last_name, role, source, location, 
+        language_preference, agency_uid, agency_mail, is_verified, 
+        country, uae_emirate, uae_city, nationality, job_position, current_country
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.query(query, [
       email,
-      mobile_number,
-      whatsapp_number,
-      mobile_number_country_code,
+      mobile_number || null,
+      whatsapp_number || null,
+      mobile_number_country_code || null,
+      whatsapp_country_code,
       password,
       first_name,
       last_name,
       role,
-      source,
-      location,
-      language_preference,
-      agency_uid,
-      agency_mail,
+      source || "Direct",
+      location || null,
+      language_preference || null,
+      agency_uid || null,
+      agency_mail || null,
       1,  // is_verified value
-      country,
-      uae_emirate,
-      uae_city
+      country || null,
+      uae_emirate || null,
+      uae_city || null,
+      nationality || null,
+      job_position || null,
+      current_country || null, // Add this
     ]);
 
     // ✅ Step 5: Send onboarding email
@@ -283,6 +397,7 @@ router.post("/", async (req, res) => {
       id: result.insertId,
       email,
       mobile_number,
+      whatsapp_country_code,
       whatsapp_number,
       first_name,
       last_name,
@@ -295,6 +410,9 @@ router.post("/", async (req, res) => {
       country,
       uae_emirate,
       uae_city,
+      nationality,
+      job_position,
+      current_country, // Add this
       is_verified: true,
     });
   } catch (err) {
@@ -303,9 +421,6 @@ router.post("/", async (req, res) => {
   }
 });
 
-
-// Update user
-// Update user
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const {
