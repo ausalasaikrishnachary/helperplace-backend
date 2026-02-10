@@ -334,7 +334,10 @@ router.post("/", async (req, res) => {
     uae_city,
     nationality,
     job_position,
-    current_country, // Add this
+    driving_license_country,
+    driving_country_experience,
+    total_work_experience,
+    current_country,
     otp,
   } = req.body;
 
@@ -357,8 +360,10 @@ router.post("/", async (req, res) => {
         email, mobile_number, whatsapp_number, mobile_number_country_code, whatsapp_country_code,
         password, first_name, last_name, role, source, location, 
         language_preference, agency_uid, agency_mail, is_verified, 
-        country, uae_emirate, uae_city, nationality, job_position, current_country
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        country, uae_emirate, uae_city, nationality, job_position, 
+        current_country, driving_license_country,
+        driving_country_experience, total_work_experience
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.query(query, [
@@ -366,7 +371,7 @@ router.post("/", async (req, res) => {
       mobile_number || null,
       whatsapp_number || null,
       mobile_number_country_code || null,
-      whatsapp_country_code,
+      whatsapp_country_code || null,
       password,
       first_name,
       last_name,
@@ -382,7 +387,10 @@ router.post("/", async (req, res) => {
       uae_city || null,
       nationality || null,
       job_position || null,
-      current_country || null, // Add this
+      current_country || null,
+      driving_license_country || null,
+      driving_country_experience ? JSON.stringify(driving_country_experience) : null,
+      total_work_experience || null, // This was missing
     ]);
 
     // ✅ Step 5: Send onboarding email
@@ -412,7 +420,10 @@ router.post("/", async (req, res) => {
       uae_city,
       nationality,
       job_position,
-      current_country, // Add this
+      current_country,
+      driving_license_country,
+      driving_country_experience,
+      total_work_experience,
       is_verified: true,
     });
   } catch (err) {
@@ -895,18 +906,18 @@ router.post("/agency-user-register", async (req, res) => {
     });
   } catch (err) {
     console.error("Error in agency registration:", err);
-    
+
     // Handle duplicate email error
     if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ 
-        success: false, 
-        message: "This email is already registered" 
+      return res.status(400).json({
+        success: false,
+        message: "This email is already registered"
       });
     }
-    
-    res.status(500).json({ 
-      success: false, 
-      error: "Internal server error" 
+
+    res.status(500).json({
+      success: false,
+      error: "Internal server error"
     });
   }
 });
