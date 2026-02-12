@@ -7,6 +7,7 @@ const { sendOtpEmail } = require('./emailService');
 const { sendProfileRejectedEmail } = require('./emailService');
 const razorpay = require("./razorpay");
 
+const bcrypt = require('bcrypt');
 // OTP storage (in production, use Redis or database)
 const otpStore = new Map();
 
@@ -311,8 +312,6 @@ router.post('/verify-otp', async (req, res) => {
 
 
 // Update user
-// Update user
-
 router.post("/", async (req, res) => {
   const {
     email,
@@ -337,6 +336,7 @@ router.post("/", async (req, res) => {
     driving_license_country,
     driving_country_experience,
     total_work_experience,
+    country_apply_for_job,
     current_country,
     otp,
   } = req.body;
@@ -362,8 +362,8 @@ router.post("/", async (req, res) => {
         language_preference, agency_uid, agency_mail, is_verified, 
         country, uae_emirate, uae_city, nationality, job_position, 
         current_country, driving_license_country,
-        driving_country_experience, total_work_experience
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        driving_country_experience, total_work_experience, country_apply_for_job
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.query(query, [
@@ -388,9 +388,11 @@ router.post("/", async (req, res) => {
       nationality || null,
       job_position || null,
       current_country || null,
-      driving_license_country || null,
+      // FIX: Stringify driving_license_country array
+      driving_license_country ? JSON.stringify(driving_license_country) : null,
       driving_country_experience ? JSON.stringify(driving_country_experience) : null,
-      total_work_experience || null, // This was missing
+      total_work_experience || null,
+      country_apply_for_job || null,
     ]);
 
     // ✅ Step 5: Send onboarding email
@@ -421,9 +423,11 @@ router.post("/", async (req, res) => {
       nationality,
       job_position,
       current_country,
-      driving_license_country,
-      driving_country_experience,
+      // Parse back to array for response
+      driving_license_country: driving_license_country ? JSON.parse(JSON.stringify(driving_license_country)) : null,
+      driving_country_experience: driving_country_experience ? JSON.parse(JSON.stringify(driving_country_experience)) : null,
       total_work_experience,
+      country_apply_for_job,
       is_verified: true,
     });
   } catch (err) {
@@ -431,6 +435,162 @@ router.post("/", async (req, res) => {
     res.status(500).json({ error: err.error?.description || err.message });
   }
 });
+// Update user
+
+// router.post("/", async (req, res) => {
+//   const {
+//     email,
+//     mobile_number,
+//     whatsapp_number,
+//     whatsapp_country_code,
+//     mobile_number_country_code,
+//     password,
+//     first_name,
+//     last_name,
+//     role,
+//     source,
+//     location,
+//     language_preference,
+//     agency_uid,
+//     agency_mail,
+//     country,
+//     uae_emirate,
+//     uae_city,
+//     nationality,
+//     job_position,
+//     driving_license_country,
+//     driving_country_experience,
+//     total_work_experience,
+//     country_apply_for_job,
+//     current_country,
+//     is_email_verified,
+//   } = req.body;
+
+//   try {
+//     // ✅ Step 1: Verify OTP (if not already verified)
+//     if (!is_email_verified) {
+//       const storedOtpData = otpStore.get(email);
+//       if (!storedOtpData || !storedOtpData.verified) {
+//         return res.status(400).json({ message: "Email not verified with OTP" });
+//       }
+//     }
+
+//     // ✅ Step 2: Check if user already exists
+//     const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+//     if (existingUser.length > 0) {
+//       return res.status(400).json({ message: "This email already registered" });
+//     }
+
+//     // ✅ Step 3: Hash password
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     // ✅ Step 4: Insert user into MySQL - FIXED COLUMN LIST
+//     const query = `
+//       INSERT INTO users (
+//         email, 
+//         mobile_number, 
+//         whatsapp_number, 
+//         mobile_number_country_code, 
+//         whatsapp_country_code,
+//         password, 
+//         first_name, 
+//         last_name, 
+//         role, 
+//         source, 
+//         location, 
+//         language_preference, 
+//         agency_uid, 
+//         agency_mail, 
+//         is_verified, 
+//         country, 
+//         uae_emirate, 
+//         uae_city, 
+//         nationality, 
+//         job_position, 
+//         current_country, 
+//         driving_license_country,
+//         driving_country_experience, 
+//         total_work_experience, 
+//         country_apply_for_job
+//       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+//     `;
+
+//     const [result] = await db.query(query, [
+//       email,
+//       mobile_number || null,
+//       whatsapp_number || null,
+//       mobile_number_country_code || null,
+//       whatsapp_country_code || null,
+//       hashedPassword, // Use hashed password, not plain text
+//       first_name,
+//       last_name,
+//       role,
+//       source || "Direct",
+//       location || null,
+//       language_preference || null,
+//       agency_uid || null,
+//       agency_mail || null,
+//       1, // is_verified value
+//       country || null,
+//       uae_emirate || null,
+//       uae_city || null,
+//       nationality || null,
+//       job_position || null,
+//       current_country || null,
+//       // Handle driving_license_country as JSON if it's an array
+//       Array.isArray(driving_license_country) 
+//         ? JSON.stringify(driving_license_country) 
+//         : driving_license_country || null,
+//       // Handle driving_country_experience as JSON
+//       driving_country_experience 
+//         ? JSON.stringify(driving_country_experience) 
+//         : null,
+//       total_work_experience || null,
+//       country_apply_for_job || null,
+//     ]);
+
+//     // ✅ Step 5: Send onboarding email
+//     await sendOnboardingEmails(email, first_name, last_name, role);
+
+//     // ✅ Step 6: Clear OTP after success
+//     otpStore.delete(email);
+
+//     // ✅ Step 7: Send response
+//     res.status(201).json({
+//       message: "User registered successfully",
+//       id: result.insertId,
+//       user: {
+//         id: result.insertId,
+//         email,
+//         mobile_number,
+//         whatsapp_country_code,
+//         whatsapp_number,
+//         first_name,
+//         last_name,
+//         role,
+//         source,
+//         location,
+//         language_preference,
+//         agency_uid,
+//         agency_mail,
+//         country,
+//         uae_emirate,
+//         uae_city,
+//         nationality,
+//         job_position,
+//         current_country,
+//         driving_license_country,
+//         driving_country_experience,
+//         total_work_experience,
+//         country_apply_for_job,
+//         is_verified: true,
+//       },
+//     });
+//   } catch (err) {
+//     console.error("Error:", err);
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
