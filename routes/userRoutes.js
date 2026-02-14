@@ -337,6 +337,10 @@ router.post("/", async (req, res) => {
     driving_country_experience,
     total_work_experience,
     country_apply_for_job,
+    expected_monthly_salary_currency,
+    expected_monthly_salary,
+    expected_monthly_salary_usd,
+    age,
     current_country,
     otp,
   } = req.body;
@@ -355,16 +359,18 @@ router.post("/", async (req, res) => {
     }
 
     // ✅ Step 4: Insert user into MySQL
+    // ✅ Step 4: Insert user into MySQL
     const query = `
-      INSERT INTO users (
-        email, mobile_number, whatsapp_number, mobile_number_country_code, whatsapp_country_code,
-        password, first_name, last_name, role, source, location, 
-        language_preference, agency_uid, agency_mail, is_verified, 
-        country, uae_emirate, uae_city, nationality, job_position, 
-        current_country, driving_license_country,
-        driving_country_experience, total_work_experience, country_apply_for_job
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+  INSERT INTO users (
+    email, mobile_number, whatsapp_number, mobile_number_country_code, whatsapp_country_code,
+    password, first_name, last_name, role, source, location, 
+    language_preference, agency_uid, agency_mail, is_verified, 
+    country, uae_emirate, uae_city, nationality, job_position, 
+    current_country, driving_license_country, driving_country_experience, 
+    total_work_experience, country_apply_for_job, age, 
+    expected_monthly_salary_currency, expected_monthly_salary, expected_monthly_salary_usd
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`;
 
     const [result] = await db.query(query, [
       email,
@@ -393,6 +399,10 @@ router.post("/", async (req, res) => {
       driving_country_experience ? JSON.stringify(driving_country_experience) : null,
       total_work_experience || null,
       country_apply_for_job || null,
+      age || null,
+      expected_monthly_salary_currency || null,
+      expected_monthly_salary || null,
+      expected_monthly_salary_usd || null
     ]);
 
     // ✅ Step 5: Send onboarding email
@@ -428,6 +438,10 @@ router.post("/", async (req, res) => {
       driving_country_experience: driving_country_experience ? JSON.parse(JSON.stringify(driving_country_experience)) : null,
       total_work_experience,
       country_apply_for_job,
+      expected_monthly_salary_currency,
+      expected_monthly_salary,
+      expected_monthly_salary_usd,
+      age,
       is_verified: true,
     });
   } catch (err) {
@@ -685,6 +699,10 @@ router.post('/login', async (req, res) => {
           whatsapp_number: user.whatsapp_number,
           first_name: user.first_name,
           last_name: user.last_name,
+          age: user.age,
+          expected_monthly_salary_currency: user.expected_monthly_salary_currency,
+          expected_monthly_salary: user.expected_monthly_salary,
+          expected_monthly_salary_usd: user.expected_monthly_salary_usd,
           role: user.role,
           is_verified: user.is_verified,
           created_at: user.created_at,
@@ -806,6 +824,10 @@ router.post('/google-auth', async (req, res) => {
           whatsapp_number: user.whatsapp_number,
           first_name: user.first_name,
           last_name: user.last_name,
+          age: user.age,
+          expected_monthly_salary_currency: user.expected_monthly_salary_currency,
+          expected_monthly_salary: user.expected_monthly_salary,
+          expected_monthly_salary_usd: user.expected_monthly_salary_usd,
           role: user.role,
           is_verified: user.is_verified,
           created_at: user.created_at,
